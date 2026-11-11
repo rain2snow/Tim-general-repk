@@ -1,0 +1,30 @@
+/* ---------- action queue ---------- */
+.qhead{padding:13px 16px 11px;border-bottom:1px solid var(--border);position:sticky;top:0;
+  background:var(--panel);z-index:5}
+.qhead h2{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--faint);font-weight:600}
+.qhead .seg{display:flex;gap:5px;margin-top:11px}
+.qhead .seg button{flex:1;font:inherit;font-size:11px;color:var(--dim);background:var(--panel2);
+  border:1px solid var(--border);border-radius:6px;padding:6px 4px;cursor:pointer;transition:.14s}
+.qhead .seg button:hover{color:var(--txt)}
+.qhead .seg button.on{background:var(--panel3);color:#fff;border-color:var(--cn)}
+.qhead .seg button .b{font-family:'IBM Plex Mono';font-weight:600}
+
+.item{padding:11px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:.13s;
+  display:flex;gap:11px;align-items:flex-start;position:relative}
+.item:hover{background:var(--panel2)}
+.item .tag{flex:none;width:3px;align-self:stretch;border-radius:2px;background:var(--dead)}
+.item.insp .tag{background:var(--amber)} .item.short .tag{background:var(--red)}
+.item .body{flex:1;min-width:0}
+.item .r1{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
+.item .loco{font-family:'IBM Plex Mono';font-weight:600;font-size:13px;color:var(--txt)}
+.item .model{font-size:10.5px;color:var(--faint);font-family:'IBM Plex Mono'}
+.item .act{font-size:11px;color:var(--dim);line-height:1.4}
+.item .act .hi{color:var(--txt);font-weight:500}
+.item .meta{display:flex;gap:10px;margin-top:5px;font-size:10px;color:var(--faint);font-family:'IBM Plex Mono';flex-wrap:wrap}
+.item .meta .pill{padding:2px 6px;border-radius:4px;background:#ffffff0d}
+.item .meta .urg{color:var(--red);background:var(--short-bg)}
+.item .meta .due{color:var(--amber);background:var(--amber-bg)}
+.item .arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--faint);
+  opacity:0;transition:.14s}
+.item:hover .arrow{opacity:1}
+.empty{padding:40px 20px;text-align:center;color:var(--faint);font-size:12px;line-height:1.6}

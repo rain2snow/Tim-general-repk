@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Locomotive Maintenance Dispatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div id="loader" class="hidden">
+  <div class="lcard">
+    <div class="ltitle">CN / IC Fleet Dispatch Console</div>
+    <div class="lsub">Replace the built-in snapshot with a newer STP export. The current picture stays loaded until you pick a file.</div>
+    <label id="drop" for="stpfile">
+      <div class="lbig">&#8682;</div>
+      <div>Drop <b>STP_Locomotives.csv</b> here<br>or click to browse</div>
+    </label>
+    <input id="stpfile" type="file" accept=".csv,text/csv" hidden>
+    <div id="loadstatus" class="lstatus"></div>
+    <div class="lnote">Captive plan &amp; coordinates are built in. Analysis runs entirely in your browser &mdash; nothing is uploaded.</div>
+    <button id="loadcancel" class="lcancel" type="button">Keep current snapshot</button>
+  </div>
+</div>
+
+<div class="shell">
+  <header>
+    <div class="brand">
+      <div class="glyph"></div>
+      <div>
+        <h1>Canadian National</h1>
+        <div class="sub">Maintenance Dispatch &middot; Fleet &amp; Shop Routing</div>
+      </div>
+    </div>
+    <div class="snap"><span class="live"></span>Snapshot <b id="snapdate">—</b></div><button id="reloadbtn" class="reloadbtn" type="button" title="Replace with a newer STP export">⬆ Update snapshot</button>
+    <div class="locosearch"><input id="locoq" type="text" placeholder="Find loco ID…" autocomplete="off" spellcheck="false"><div id="locores" class="locores"></div></div>
+    <div class="vtab" id="vtab">
+      <button data-view="console" class="on">Console</button>
+      <button data-view="dash">Dashboard</button>
+      <button data-view="fleet">Fleet</button>
+      <button data-view="actions">Actions Required</button>
+    </div>
+    <div class="mtab">
+      <button data-tab="left">Board</button>
+      <button data-tab="map" class="on">Map</button>
+      <button data-tab="right">Actions</button>
+    </div>
+    <div class="legend" id="legend">
+      <span class="li"><span class="dot" style="background:var(--red)"></span>Short</span>
+      <span class="li"><span class="dot" style="background:var(--steel)"></span>Even</span>
+      <span class="li"><span class="dot" style="background:var(--green)"></span>Surplus</span>
+      <span class="li"><span class="dot" style="background:var(--violet)"></span>Free low/mid HP</span>
+      <span class="li"><span class="dia" style="width:8px;height:8px;transform:rotate(45deg);background:transparent;border:1.5px solid var(--steel)"></span>Shared pool</span>
+      <span class="li"><span class="dot" style="background:transparent;border:1.5px solid var(--amber)"></span>Inspection due</span>
+      <span class="li"><span class="dia" style="background:var(--dead)"></span>Dead unit</span>
+      <span class="li"><span class="sq" style="background:var(--cyan)"></span>Shop</span>
+    </div>
+  </header>
+
+  <!-- LEFT: status board -->
+  <aside class="left" id="left">
+    <button class="panel-collapse" id="lcollapse" title="Collapse this panel">◀</button>
+    <div class="sec">
+      <h2>Network status <span class="ct" id="netcount"></span></h2>
+      <div class="tiles">
+        <div class="tile red" data-layer="short"><span class="bar"></span><div class="num" id="t-short">0</div><div class="lbl">Locations running <b>short</b></div></div>
+        <div class="tile even" data-layer="even"><span class="bar"></span><div class="num" id="t-even">0</div><div class="lbl">Locations <b>even</b> to plan</div></div>
+        <div class="tile green" data-layer="surplus"><span class="bar"></span><div class="num" id="t-surp">0</div><div class="lbl">Locations in <b>surplus</b></div></div>
+        <div class="tile dead" data-layer="dead"><span class="bar"></span><div class="num" id="t-dead">0</div><div class="lbl">Dead units to <b>route to shop</b></div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2>Demand basis</h2>
+      <div class="dowtog" id="dowToggle"><span class="sw"></span><span class="nm">Day-of-week demand</span><span class="n" id="dow-state">peak</span></div>
+      <div class="dowdays" id="dowDays" style="display:none">
+        <button data-d="0" title="Sunday">S</button><button data-d="1" title="Monday">M</button><button data-d="2" title="Tuesday">T</button><button data-d="3" title="Wednesday">W</button><button data-d="4" title="Thursday">T</button><button data-d="5" title="Friday">F</button><button data-d="6" title="Saturday">S</button>
+      </div>
+      <div class="dowhint" id="dowHint">Showing peak (all-days) requirement.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Map layers</h2>
+      <div class="toggle on" data-layer="short" style="--c:var(--red)"><span class="sw"></span><span class="mk dot" style="background:var(--red);border-radius:50%"></span><span class="nm">Short locations</span><span class="n" id="n-short">0</span></div>
+      <div class="toggle on" data-layer="even" style="--c:var(--steel)"><span class="sw"></span><span class="mk dot" style="background:var(--steel);border-radius:50%"></span><span class="nm">Even to plan</span><span class="n" id="n-even">0</span></div>
+      <div class="toggle on" data-layer="surplus" style="--c:var(--green)"><span class="sw"></span><span class="mk dot" style="background:var(--green);border-radius:50%"></span><span class="nm">Surplus locations</span><span class="n" id="n-surp">0</span></div>
+      <div class="toggle on" data-layer="shared" style="--c:var(--steel)"><span class="sw"></span><span class="mk dia" style="background:transparent;border:1.5px solid var(--steel);transform:rotate(45deg)"></span><span class="nm">Shared pool (multi-station)</span><span class="n" id="n-shared">0</span></div>
+      <div class="toggle on" data-layer="free" style="--c:var(--violet)"><span class="sw"></span><span class="mk dot" style="background:var(--violet);border-radius:50%"></span><span class="nm">Free low/mid HP (unassigned)</span><span class="n" id="n-free">0</span></div>
+      <div class="toggle" data-layer="inspection" style="--c:var(--amber)"><span class="sw"></span><span class="mk dot" style="background:transparent;border:1.5px solid var(--amber);border-radius:50%"></span><span class="nm">Inspection due (overlay)</span><span class="n" id="n-insp">0</span></div>
+      <div class="toggle on" data-layer="dead" style="--c:var(--dead)"><span class="sw"></span><span class="mk dia" style="background:var(--dead);transform:rotate(45deg)"></span><span class="nm">Dead units + routing</span><span class="n" id="n-dead">0</span></div>
+      <div class="toggle on" data-layer="deadhead" style="--c:#7ec8ff"><span class="sw"></span><span class="mk dia" style="background:#7ec8ff;transform:rotate(45deg)"></span><span class="nm">Inbound deadhead + ETA</span><span class="n" id="n-dh">0</span></div>
+      <div class="toggle on" data-layer="shop" style="--c:var(--cyan)"><span class="sw"></span><span class="mk sq" style="background:var(--cyan);border-radius:2px"></span><span class="nm">Repair shops</span><span class="n" id="n-shop">0</span></div>
+      <div class="toggle on" data-layer="tracks" style="--c:#e8a13a"><span class="sw"></span><span class="mk" style="height:0;border-top:2px solid #e8a13a;width:13px;border-radius:0"></span><span class="nm">Rail corridors (schematic)</span><span class="n">schem</span></div>
+    </div>
+
+    <div class="sec">
+      <h2>How status is read</h2>
+      <div class="method">
+        <p>Every captive-plan location is colored by its balance vs plan: <b style="color:var(--red)">short</b> (on hand below requirement), <b style="color:var(--steel)">even</b> (on hand equals requirement), or <b style="color:var(--green)">surplus</b> (on hand above requirement). Dot size scales with the size of the gap. A <b style="color:var(--steel)">shared-pool</b> diamond marks a station whose work is covered by a pool shared with another terminal and counted there (it shares power across stations). A <b style="color:var(--violet)">free low/mid HP</b> dot marks a location holding Available LHP/MHP units (under 4000&nbsp;hp) not assigned to any captive job — deployable power to cover shortages, failures, or inspection swaps.</p>
+        <p><b style="color:var(--amber)">Inspection due</b> (overlay) — an amber ring on locations holding available units with a forecast inspection within 3 days or overdue; overdue rings pulse. Swap before it lapses.</p>
+        <p>Requirement is the shared-job-adjusted unit count (shared jobs counted once), <b>including active M schedules; excluding HHP, CALF, and slug units</b>. On hand counts Available units <b>under 4000&nbsp;hp</b>, excluding YBU/HBU boosters (slugs); a unit out working its captive train counts at its home terminal (in service there), not where it momentarily sits. HHP (≥4000&nbsp;hp) is excluded from both shortage and surplus. Each location lists its captive trains/jobs and the units currently assigned to them (↗ = out on the road). Jobs whose pool is shared across terminals are counted once at a primary station and flagged on both sides.</p>
+        <p><b style="color:var(--dead)">Dead unit</b> — set out dead in transit <span class="k">LD / DIT / DM</span> — low/mid HP only (HHP excluded from routing). Move to its assigned shop; flagged if none assigned.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAP -->
+  <div id="mapwrap" style="position:relative">
+    <div id="map"></div>
+    <div class="map-note">Lines march from each <b style="color:var(--dead)">dead unit</b> toward its assigned <b style="color:var(--cyan)">shop</b>. Click any marker or action for detail.</div>
+  </div>
+
+  <!-- RIGHT: action queue -->
+  <aside class="right" id="right">
+    <button class="panel-collapse" id="rcollapse" title="Collapse this panel">▶</button>
+    <div class="qhead">
+      <h2>Action queue</h2>
+      <div class="seg" id="seg">
+        <button data-f="all" class="on">All <span class="b" id="c-all">0</span></button>
+        <button data-f="route">Route <span class="b" id="c-route">0</span></button>
+        <button data-f="swap">Station <span class="b" id="c-swap">0</span></button>
+        <button data-f="retask">Re-task <span class="b" id="c-retask">0</span></button>
+      </div>
+    </div>
+    <div id="queue"></div>
+  </aside>
+  <button class="reopen-tab" id="reopen-left" title="Show Network status">▶</button>
+  <button class="reopen-tab" id="reopen-right" title="Show Action queue">◀</button>
+
+  <!-- DASHBOARD -->
+  <section id="dash">
+    <div class="dash-h">
+      <h2>Fleet balance by region</h2>
+      <span class="sub">low/mid-HP captive plan &mdash; requirement vs on-hand, drill into zones &amp; locations</span>
+      <button id="dashexport" class="actexport" title="Download the full balance breakdown + free units as CSV">Export CSV</button>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div id="kpi-detail"></div>
+    <table class="dtable">
+      <thead><tr>
+        <th class="l">Region / Zone / Location</th>
+        <th>Required</th><th>On hand</th><th>Net</th><th>Balance</th>
+      </tr></thead>
+      <tbody id="dbody"></tbody>
+    </table>
+    <div class="dash-foot" id="dashfoot"></div>
+    <div id="offplan"></div>
+  </section>
+  <section id="actreq"></section>
+  <section id="fleetview">
+    <div class="dash-h">
+      <h2>Fleet status breakdown</h2>
+      <span class="sub">entire low/mid-HP fleet by status &mdash; click any row to drill into the units</span>
+    </div>
+    <div id="fleetbox"></div>
+  </section>
+</div>
+
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

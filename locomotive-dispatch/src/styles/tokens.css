@@ -1,0 +1,18 @@
+:root{
+  --cn:#e1251b;                       /* Canadian National red */
+  --bg:#0c0d0f; --panel:#141519; --panel2:#1c1e23; --panel3:#24272e;
+  --line:#ffffff10; --border:#2b2e36; --border2:#3c4049;
+  --txt:#edeef1; --dim:#969aa3; --faint:#62666f;
+  --red:#e1251b; --amber:#f6a623; --green:#36c98a; --cyan:#5bb8d4;
+  --dead:#ff7a3d; --yellow:#ffd23f; --steel:#8b929e; --violet:#8b8ad6;
+  --short-bg:#e1251b18; --amber-bg:#f6a62318; --green-bg:#36c98a18; --dead-bg:#ff7a3d18;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  background:var(--bg); color:var(--txt);
+  overflow:hidden; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:'IBM Plex Mono',monospace}
+.cond{font-family:'IBM Plex Sans Condensed',sans-serif}

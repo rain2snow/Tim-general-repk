@@ -1,0 +1,35 @@
+/* plan-in-place markers */
+.item.planned{box-shadow:inset 3px 0 0 var(--green)}
+.item.retask .tag{background:var(--cyan)}
+.item.done{opacity:.55}
+.item .planflag{position:absolute;top:10px;right:24px;font-size:8.5px;letter-spacing:.6px;color:var(--green);font-family:'IBM Plex Mono',monospace}
+.qsol{margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-right:8px}
+.qsol textarea.qta{flex:1 1 100%;min-height:28px;max-height:140px;resize:vertical;background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:11px;font-family:inherit;padding:5px 7px;line-height:1.4}
+.qsol textarea.qta:focus{outline:none;border-color:var(--cn)}
+.qsol .qdone{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--dim);font-family:'IBM Plex Mono',monospace;cursor:pointer;user-select:none}
+.qsol .qdone input{accent-color:var(--green);cursor:pointer;margin:0}
+.qsol .qsaved{font-size:10px;color:var(--green);opacity:0;transition:opacity .2s}
+.qsol .qsaved.on{opacity:1}
+.item.done .loco,.item.done .act{opacity:.55}
+#offplan{margin-top:26px}
+#offplan .op-h{display:flex;align-items:baseline;gap:10px;margin:0 0 4px}
+#offplan .op-h h3{margin:0;font-size:13px;letter-spacing:.4px;color:var(--txt)}
+#offplan .op-h .sub{font-size:10.5px;color:var(--dim)}
+#offplan .op-grp{margin-top:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+#offplan .op-gh{display:flex;align-items:center;gap:9px;padding:8px 12px;background:var(--panel2);cursor:pointer;user-select:none}
+#offplan .op-gh .tw2{transition:transform .15s;font-size:9px;color:var(--dim)}
+#offplan .op-grp.collapsed .tw2{transform:rotate(-90deg)}
+#offplan .op-gh .t{font-size:11.5px;color:var(--txt);font-weight:600}
+#offplan .op-gh .n2{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)}
+#offplan .op-gh .why{font-size:10px;color:var(--dim);margin-left:auto}
+#offplan .op-grp.collapsed .op-body{display:none}
+#offplan table.optable{width:100%;border-collapse:collapse;font-size:10.5px}
+#offplan table.optable th{text-align:left;padding:5px 12px;color:var(--dim);font-weight:500;font-size:9.5px;letter-spacing:.5px;border-bottom:1px solid var(--line)}
+#offplan table.optable td{padding:4px 12px;border-bottom:1px solid var(--line);color:var(--txt)}
+#offplan table.optable tr:last-child td{border-bottom:none}
+#offplan .opbadge{display:inline-block;padding:1px 5px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+#offplan .opbadge.ln{color:var(--green);border-color:var(--green)}
+.item.planned .arrow,.item.done .arrow{color:var(--green)}
+.drow.planned .tx::after{content:'plan';color:var(--green);font-size:8.5px;margin-left:7px;letter-spacing:.5px;border:1px solid var(--green);border-radius:8px;padding:0 5px;vertical-align:middle}
+.kd-card.planned{border-color:var(--green)}
+.mk-plan{display:flex;align-items:center;justify-content:center;font-size:9px;color:#07140d;background:var(--green);border-radius:50%;width:14px;height:14px;font-weight:800;box-shadow:0 0 0 2px #0a0a0b,0 0 6px var(--green)}

@@ -1,0 +1,32 @@
+/* KPI row */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:16px 0 10px}
+.kpi{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.kpi:hover{border-color:#2b2e36;box-shadow:0 0 0 1px rgba(255,255,255,.05)}
+.kpi.active{border-color:var(--cn);box-shadow:0 0 0 2px rgba(225,37,27,.33)}
+/* KPI detail panel */
+#kpi-detail{display:none;margin:0 0 20px;background:#0c1421;border:1px solid var(--border2);
+  border-radius:10px;overflow:hidden;animation:fadeIn .18s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.kd-header{display:flex;align-items:center;justify-content:space-between;
+  padding:11px 16px;background:#111c2d;border-bottom:1px solid var(--border2)}
+.kd-header h3{font-size:13px;font-weight:650;letter-spacing:.2px}
+.kd-header .close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;padding:0 4px;line-height:1}
+.kd-header .close:hover{color:var(--txt)}
+.kd-body{padding:14px 16px 16px;max-height:340px;overflow-y:auto}
+.kd-body::-webkit-scrollbar{width:4px} .kd-body::-webkit-scrollbar-thumb{background:#2b2e36;border-radius:2px}
+/* detail grid */
+.kd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.kd-card{background:#0f1826;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px}
+.kd-card .loc{font-weight:650;color:var(--txt);margin-bottom:5px;display:flex;align-items:baseline;gap:6px}
+.kd-card .loc .st{font-size:10px;color:var(--dim)}
+.kd-card .loc .badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:auto}
+.kd-card .locos{display:flex;flex-wrap:wrap;gap:4px}
+.kd-card .ltag{background:#162030;border:1px solid #2b2e36;border-radius:4px;
+  padding:2px 7px;font-size:11px;font-family:monospace;color:#8fb3d4;white-space:nowrap}
+.kd-card .ltag.road{border-color:#1c1e23;color:var(--cn);font-style:italic}
+.kd-card .ltag.short{background:#2a1218;border-color:#4a2028;color:#ff8080}
+.kd-empty{color:var(--dim);font-size:12px;text-align:center;padding:20px}
+.kpi{background:linear-gradient(180deg,#141d2c,#0e1622);border:1px solid var(--border);border-radius:10px;padding:13px 15px;position:relative;overflow:hidden}
+.kpi .v{font-size:25px;font-weight:680;letter-spacing:.5px;line-height:1}
+.kpi .l{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin-top:6px}
+.kpi .bar{position:absolute;left:0;top:0;bottom:0;width:3px}
