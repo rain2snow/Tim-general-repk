@@ -23,6 +23,7 @@ import { initLoader } from './loader.js';
 import { analyze, rowsFromFleet } from '../core/analyze.js';
 import { loadSavedPlan, savePlan, clearSavedPlan } from './planStore.js';
 import { initPlanView, buildPlanView } from './views/planView.js';
+import { initThemeToggle } from './theme.js';
 
 /** Re-render everything derived from app.data. */
 export function render() {
@@ -98,6 +99,7 @@ export function startApp({ snapshot, reference, network, hubs }) {
   app.snapshotNow = snapshotDateOf(snapshot);
   const saved = loadSavedPlan();
   initMap('map');
+  initThemeToggle();
   if (network) renderRailLegend(renderNetwork(network), network);
   initLayerToggles();
   initDemandToggle(render);

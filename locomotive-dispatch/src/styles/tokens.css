@@ -1,12 +1,81 @@
+/*
+ * Theme tokens. Every colour in the stylesheets resolves through these.
+ * Dark is the default; light applies with <html data-theme="light"> (see ui/theme.js).
+ */
 :root{
+  color-scheme:dark;
   --cn:#e1251b;                       /* Canadian National red */
-  --bg:#0c0d0f; --panel:#141519; --panel2:#1c1e23; --panel3:#24272e;
+  --bg:#0c0d0f; --panel:#141519; --panel2:#1c1e23; --panel3:#24272e; --panel3-h:#2c3038;
   --line:#ffffff10; --border:#2b2e36; --border2:#3c4049;
-  --txt:#edeef1; --dim:#969aa3; --faint:#62666f;
+  --txt:#edeef1; --dim:#969aa3; --faint:#62666f; --txt-hi:#fff;
   --red:#e1251b; --amber:#f6a623; --green:#36c98a; --cyan:#5bb8d4;
   --dead:#ff7a3d; --yellow:#ffd23f; --steel:#8b929e; --violet:#8b8ad6;
   --short-bg:#e1251b18; --amber-bg:#f6a62318; --green-bg:#36c98a18; --dead-bg:#ff7a3d18;
+
+  /* surfaces */
+  --chrome:#0a0a0b; --nav-bg:#0c1422; --thead:#16171b; --card-a:#141d2c; --card-b:#0e1622;
+  --shade:rgba(0,0,0,.16); --rowline:rgba(255,255,255,.04);
+  --wash:#ffffff0d; --wash2:#ffffff10; --wash-faint:#ffffff08; --wash-bar:#ffffff0a;
+  --shadow-lg:rgba(0,0,0,.55); --shadow-pop:#000a; --scroll:#24272e;
+  /* secondary text (blue-greys used by the dashboard / search) */
+  --txt2:#c7d2e2; --txt2b:#c4c7cd; --txt3:#9fb0c4; --txt3b:#aeb9cc; --dim2:#7f93a8; --faint2:#5a6b80;
+  /* hairlines */
+  --line-blue:#243140; --line-cyan:#1c3540; --line-red:#3a1f1c; --line-red2:#4a1d1a; --line-red3:#4a2028;
+  /* dashboard balance tree + KPI detail */
+  --tree-region-a:#16243a; --tree-region-b:#111c2c; --tree-zone:#0f1825; --tree-zone-h:#13202f; --tree-loc-h:#101a27;
+  --tree-model:#0a0f17; --tree-model-h:#0d131d; --tree-unit:#070b11;
+  --free:#b9a8e8; --free-dim:#6b5e8c; --free-bg:#0c0a14; --free-bg-h:#13101f; --free-line:#3a2f5c; --violet-line:#33285a;
+  --kd-bg:#0c1421; --kd-head:#111c2d; --kd-card:#0f1826; --ltag-bg:#162030; --ltag-txt:#8fb3d4;
+  --short-tag-bg:#2a1218; --short-txt:#ff8080;
+  /* map */
+  --map-bg:#0a0e15; --attr-bg:#0d1421cc; --attr-link:#7e8aa0; --ctl-bg:#172030; --ctl-bg-h:#1d2738; --ctl-txt:#d8dfeb;
+  --mk-halo:#ffffff22; --note-bg:#0c0d0fd9; --lcs:#7ec8ff;
+  /* search + menus */
+  --search-bg:#0f1726; --search-txt:#dce6f7; --menu-bg:#121826; --menu-line:#1b2436; --menu-h:#19233a;
+  --menu-txt:#eaf2ff; --menu-txt2:#aab8d2; --menu-dim:#8da0bf;
+  /* switches */
+  --sw-track:#24272e; --sw-knob:#818690; --sw-knob2:#6b7280;
+  /* inline (JS-built) colours */
+  --badge-bg:#1a2a3a; --s-dead:#ff7a45; --s-avail:#2fd58a; --s-held:#7d8aaa; --s-off:#6c7079;
 }
+
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#eef0f3; --panel:#ffffff; --panel2:#f4f5f7; --panel3:#e7eaee; --panel3-h:#dde1e7;
+  --line:#0000000f; --border:#dde1e7; --border2:#c7ccd4;
+  --txt:#15181d; --dim:#4c535e; --faint:#7d8491; --txt-hi:#000;
+  --red:#cc1f17; --amber:#a86400; --green:#0f7d55; --cyan:#13739a;
+  --dead:#c94c10; --yellow:#8f6c00; --steel:#646b78; --violet:#5149b8;
+  --short-bg:#cc1f1714; --amber-bg:#a8640014; --green-bg:#0f7d5514; --dead-bg:#c94c1014;
+
+  --chrome:#ffffff; --nav-bg:#eceef2; --thead:#f2f4f7; --card-a:#ffffff; --card-b:#f7f8fa;
+  --shade:rgba(0,0,0,.025); --rowline:rgba(0,0,0,.06);
+  --wash:#0000000a; --wash2:#0000000d; --wash-faint:#00000006; --wash-bar:#0000000d;
+  --shadow-lg:rgba(20,28,40,.18); --shadow-pop:rgba(20,28,40,.22); --scroll:#c7ccd4;
+  --txt2:#262c37; --txt2b:#3a414c; --txt3:#4a5568; --txt3b:#4a5568; --dim2:#5c6878; --faint2:#8792a3;
+  --line-blue:#d2d9e3; --line-cyan:#b9d8e6; --line-red:#efc6c3; --line-red2:#efc6c3; --line-red3:#efc6c3;
+  --tree-region-a:#e8edf5; --tree-region-b:#e1e7f0; --tree-zone:#f3f5f9; --tree-zone-h:#e9edf3; --tree-loc-h:#f2f4f8;
+  --tree-model:#fafbfc; --tree-model-h:#f1f3f7; --tree-unit:#ffffff;
+  --free:#5845b4; --free-dim:#8577c0; --free-bg:#f7f5fd; --free-bg-h:#efebfb; --free-line:#d7d0f1; --violet-line:#d7d0f1;
+  --kd-bg:#f6f7fa; --kd-head:#eceff4; --kd-card:#ffffff; --ltag-bg:#eef1f6; --ltag-txt:#2f5f86;
+  --short-tag-bg:#fdecec; --short-txt:#c41d1d;
+  --map-bg:#e4e8ed; --attr-bg:#ffffffcc; --attr-link:#4c535e; --ctl-bg:#ffffff; --ctl-bg-h:#f1f3f6; --ctl-txt:#22262d;
+  --mk-halo:#0000002b; --note-bg:#ffffffe6; --lcs:#13739a;
+  --search-bg:#ffffff; --search-txt:#15181d; --menu-bg:#ffffff; --menu-line:#eef0f3; --menu-h:#eef2f8;
+  --menu-txt:#15181d; --menu-txt2:#4c535e; --menu-dim:#5c6878;
+  --sw-track:#cfd4dc; --sw-knob:#ffffff; --sw-knob2:#ffffff;
+  --badge-bg:#eef1f6; --s-dead:#c94c10; --s-avail:#0f7d55; --s-held:#5c6878; --s-off:#7d8491;
+}
+
+/* light: CN network + route lines need deeper strokes on a light basemap (CSS beats SVG attributes) */
+:root[data-theme="light"] path.cn-rail-286k{stroke:#b86b00}
+:root[data-theme="light"] path.cn-rail-272k{stroke:#9a7a3c}
+:root[data-theme="light"] path.cn-rail-268k,:root[data-theme="light"] path.cn-rail-263k{stroke:#8a7660}
+:root[data-theme="light"] path.cn-rail-lt263k{stroke:#a65a3a}
+:root[data-theme="light"] path.cn-rail-rights{stroke:#6b7280}
+:root[data-theme="light"] path.route-dh{stroke:#13739a}
+:root[data-theme="light"] .rail-legend svg line{filter:saturate(1.2) brightness(.8)}
+
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
@@ -16,3 +85,10 @@ body{
 }
 .mono{font-family:'IBM Plex Mono',monospace}
 .cond{font-family:'IBM Plex Sans Condensed',sans-serif}
+
+/* theme toggle (header) */
+.themetog{margin-left:-6px;width:30px;height:28px;flex:none;display:inline-flex;align-items:center;justify-content:center;
+  background:var(--panel2);border:1px solid var(--border);border-radius:7px;color:var(--dim);cursor:pointer;transition:.15s;padding:0}
+.themetog:hover{border-color:var(--cn);color:var(--txt)}
+.themetog svg{width:15px;height:15px}
+.themetog .sun{display:none} :root[data-theme="light"] .themetog .sun{display:block} :root[data-theme="light"] .themetog .moon{display:none}

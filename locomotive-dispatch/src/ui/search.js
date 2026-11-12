@@ -28,9 +28,9 @@ export function locateLoco(loco, box) {
   if (f.road && f.home && markerByKey[f.home]) { showStation(f.home); mobileToMap(); return true; }
   if (f.k && markerByKey[f.k]) { showStation(f.k); mobileToMap(); return true; }
   if (f.lat != null) { map.flyTo([f.lat, f.lng], 7, { duration: 0.8 }); mobileToMap(); return true; }
-  box.innerHTML = '<div class="empty"><b style="color:#eaf2ff">' + loco + '</b> <span style="color:#8da0bf">' + f.model + '</span><br>at ' +
+  box.innerHTML = '<div class="empty"><b style="color:var(--menu-txt)">' + loco + '</b> <span style="color:var(--menu-dim)">' + f.model + '</span><br>at ' +
     (f.loc || 'unknown location') + ' — off the captive plan (no map pin)<br>' +
-    '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#8da0bf">' + f.op + ' · ' + f.desig + '</span></div>';
+    '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:var(--menu-dim)">' + f.op + ' · ' + f.desig + '</span></div>';
   box.classList.add('show');
   return true;
 }
@@ -38,10 +38,10 @@ export function locateLoco(loco, box) {
 function resultHtml(k, selected) {
   const e = app.locoIndex[k];
   const tag = e.dead
-    ? '<span class="op" style="color:#ff7a45">' + e.op + ' · DIT</span>'
-    : '<span class="op" style="color:' + (e.desig === 'Available' ? '#2fd58a' : '#7d8aaa') + '">' + e.op + '</span>';
+    ? '<span class="op" style="color:var(--s-dead)">' + e.op + ' · DIT</span>'
+    : '<span class="op" style="color:' + (e.desig === 'Available' ? 'var(--s-avail)' : 'var(--s-held)') + '">' + e.op + '</span>';
   const extra = e.road && e.home ? ' <span style="color:var(--cn)">· ↗ ' + stationOfKey(e.home) + '</span>'
-    : e.offplan && !e.dead ? ' <span style="color:#6c7079">· off-plan</span>' : '';
+    : e.offplan && !e.dead ? ' <span style="color:var(--s-off)">· off-plan</span>' : '';
   return '<div class="r' + (selected ? ' sel' : '') + '" data-loco="' + k + '"><span class="id">' + k + '<span class="mo">' + e.model + '</span></span>' +
     '<span class="lo">' + (e.loc || '?') + extra + '<br>' + tag + '</span></div>';
 }

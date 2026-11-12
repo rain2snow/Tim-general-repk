@@ -94,6 +94,28 @@ a browser. UI modules talk through `state.js` (`app` + `on/emit('plans')`), not 
 * **Dead** means LD / DM / DIT (low/mid HP only), routed to the assigned shop or the nearest one.
   **Deadhead** means DH units with their destination and ETA.
 
+## Light / dark mode
+
+The sun/moon button in the header switches between **dark** (the default) and **light**. The choice
+is remembered in this browser. A small script in `index.html` applies it before the first paint,
+so the page never flashes the wrong theme.
+
+How it's built:
+
+* **Colours come from tokens.** Every colour in the stylesheets goes through tokens in
+  `src/styles/tokens.css`, and light mode is a second token set (`:root[data-theme="light"]`).
+  * The dark values are the original colours, so dark mode is pixel-identical to before. The only
+    exceptions are native checkboxes, which now follow the theme.
+  * The light palette is cool grey, with deeper status colours so they meet text contrast on white.
+* **HTML built in JS uses the same variables.** Popups, KPI cards and badges take their colours
+  from `THEME`, with tints written as `color-mix()`.
+* **Map shapes keep their bright hex colours**, which read on both basemaps.
+  * The CN network lines and the inbound-deadhead routes get deeper strokes in light mode.
+  * The basemap swaps between Esri Dark Gray and Light Gray with the theme.
+
+`tests/e2e/theme.mjs` checks the toggle, its labels, persistence, applying before first paint, and
+the switch back.
+
 ## Captive Plan tab (editable)
 
 The **Captive Plan** tab lists all 237 plan locations, with search, a region filter and an "edited

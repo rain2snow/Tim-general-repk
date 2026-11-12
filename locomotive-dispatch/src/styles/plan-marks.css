@@ -32,4 +32,4 @@
 .item.planned .arrow,.item.done .arrow{color:var(--green)}
 .drow.planned .tx::after{content:'plan';color:var(--green);font-size:8.5px;margin-left:7px;letter-spacing:.5px;border:1px solid var(--green);border-radius:8px;padding:0 5px;vertical-align:middle}
 .kd-card.planned{border-color:var(--green)}
-.mk-plan{display:flex;align-items:center;justify-content:center;font-size:9px;color:#07140d;background:var(--green);border-radius:50%;width:14px;height:14px;font-weight:800;box-shadow:0 0 0 2px #0a0a0b,0 0 6px var(--green)}
+.mk-plan{display:flex;align-items:center;justify-content:center;font-size:9px;color:#07140d;background:var(--green);border-radius:50%;width:14px;height:14px;font-weight:800;box-shadow:0 0 0 2px var(--map-bg),0 0 6px var(--green)}

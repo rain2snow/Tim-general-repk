@@ -11,7 +11,9 @@ import { stationPopupElement, stationPopupOptions, deadPopup, deadheadPopup, sho
 export let map = null;
 /** Toggleable layer groups (names match data-layer attributes in the markup). */
 export const layers = {};
-let routeLines = null, dhLines = null;
+let routeLines = null, dhLines = null, basemap = null;
+/** Keep the basemap in step with the light / dark theme. */
+export const setMapTheme = (theme) => { if (basemap) basemap.matchTheme(theme); };
 const planMarks = {};
 /** station key / loco id -> marker, for fly-to */
 export const markerByKey = {};
@@ -24,7 +26,7 @@ const INITIALLY_HIDDEN = new Set(['inspection']);
 
 export function initMap(el = 'map') {
   map = L.map(el, { zoomControl: true, attributionControl: true, minZoom: 3, maxZoom: 11, worldCopyJump: false }).setView([49, -95], 4);
-  installBasemap(map);
+  basemap = installBasemap(map);
   ['tracks', 'short', 'even', 'surplus', 'shared', 'free', 'inspection', 'dead', 'deadhead', 'shop'].forEach((n) => {
     layers[n] = L.featureGroup();
     if (!INITIALLY_HIDDEN.has(n)) layers[n].addTo(map);
@@ -136,7 +138,7 @@ function renderMovers(list, { layer, lines, index, color, size, dash, opacity, p
     m.addTo(layer);
     index[d.loco] = m;
     if (d.tlat != null) {
-      L.polyline([[d.lat, d.lng], [d.tlat, d.tlng]], { color, weight: 1.6, opacity, dashArray: dash, className: 'route-line' }).addTo(lines);
+      L.polyline([[d.lat, d.lng], [d.tlat, d.tlng]], { color, weight: 1.6, opacity, dashArray: dash, className: 'route-line ' + (color === CO.dead ? 'route-dead' : 'route-dh') }).addTo(lines);
       const end = color === CO.dead ? CO.cyan : color;
       L.circleMarker([d.tlat, d.tlng], { radius: 2.5, color: end, fillColor: end, fillOpacity: 0.9, weight: 0 }).addTo(lines);
     }

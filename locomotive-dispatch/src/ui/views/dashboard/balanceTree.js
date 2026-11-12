@@ -2,7 +2,7 @@
  * Region -> zone -> location -> model family -> unit tree for the dashboard.
  * Rows are flat <tr>s; nesting is expressed by `grp-<parentId>` classes and toggled in place.
  */
-import { COLORS as CO, REGION_ORDER } from '../../../core/constants.js';
+import { THEME as CO, tint, REGION_ORDER } from '../../../core/constants.js';
 import { esc } from '../../../core/html.js';
 import { buildBalanceTree, familyBreakdown, byNetAsc } from '../../../core/balance.js';
 import { isGrouped } from '../../../core/pools.js';
@@ -16,7 +16,7 @@ const freeBadge = (n) => (n ? ` <span class="free-badge">${n} free</span>` : '')
 
 function netPill(net) {
   const c = net > 0 ? CO.green : net < 0 ? CO.red : CO.even;
-  return `<span class="netcell"><span class="pill" style="background:${c}22;color:${c};border:1px solid ${c}55">${net > 0 ? '+' + net : net}</span></span>`;
+  return `<span class="netcell"><span class="pill" style="background:${tint(c,'22')};color:${c};border:1px solid ${tint(c,'55')}">${net > 0 ? '+' + net : net}</span></span>`;
 }
 
 function balBar(req, have, maxReq) {

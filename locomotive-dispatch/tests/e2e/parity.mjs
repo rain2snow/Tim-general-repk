@@ -321,6 +321,16 @@ try {
     delete orig.popups[k]; delete rebuilt.popups[k];
   }
   if (lost.length) { console.error(`station popups lost content (${lost.length}):`, lost.slice(0, 15)); process.exitCode = 1; }
+  // Intentional change 7: light / dark theme. HTML colours are theme variables (var(--cyan)) and
+  // tints are color-mix(); translate them back to the dark-theme hex the original used, so the
+  // remaining popups are still compared exactly.
+  const DARK = { '--red': '#e1251b', '--amber': '#f6a623', '--green': '#36c98a', '--cyan': '#5bb8d4', '--dead': '#ff7a3d',
+    '--steel': '#8b929e', '--violet': '#8b8ad6', '--lcs': '#7ec8ff' };
+  const toDark = (h) => h
+    .replace(/color-mix\(in srgb, var\((--[a-z]+)\) ([\d.]+)%, transparent\)/g,
+      (_, v, pct) => DARK[v] + Math.round(+pct * 2.55).toString(16).padStart(2, '0'))
+    .replace(/var\((--[a-z]+)\)/g, (m, v) => DARK[v] || m);
+  for (const k of Object.keys(rebuilt.popups)) rebuilt.popups[k] = toDark(rebuilt.popups[k]);
   const errs = rebuilt.errors;
   delete orig.errors; delete rebuilt.errors;
   const d = diff(orig, rebuilt);

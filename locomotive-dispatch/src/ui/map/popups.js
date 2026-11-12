@@ -1,5 +1,5 @@
 /** Leaflet popup HTML for stations, dead units, deadheads and shops. */
-import { COLORS as CO, displayState } from '../../core/constants.js';
+import { THEME as CO, tint, displayState } from '../../core/constants.js';
 import { esc } from '../../core/html.js';
 import { stationOfKey } from '../../core/keys.js';
 
@@ -9,14 +9,14 @@ const BADGES = {
 };
 function stBadge(st) {
   const [t, c] = BADGES[st] || ['', ''];
-  return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`;
+  return `<span class="badge" style="background:${tint(c,'22')};color:${c}">${t}</span>`;
 }
 function ltTag(t) {
   const c = t === 'HHP' ? CO.cyan : t === 'MHP' ? CO.amber : CO.green;
   return `<span style="color:${c}">${esc(t || '—')}</span>`;
 }
 const netband = (color, n, label) =>
-  `<div class="netband" style="color:${color};border-color:${color}55"><span class="nb-n">${n}</span><span class="nb-l">${label}</span></div>`;
+  `<div class="netband" style="color:${color};border-color:${tint(color,'55')}"><span class="nb-n">${n}</span><span class="nb-l">${label}</span></div>`;
 
 /* ------------------------------------------------------------------ station popup panes
  * Each pane: { key, label (tab), count, cap (heading inside the pane), body }.
@@ -92,7 +92,7 @@ function shopPane(lsUnits) {
     const soon = u.etrH != null && u.etrH < 24;
     const etrTxt = u.etr ? `ETR ${esc(u.etr)}` : 'ETR —';
     const dur = u.sinceD != null ? ` <span class="dur">${u.sinceD}d in shop</span>` : '';
-    return `<div class="u"${soon ? ` style="background:${CO.green}14;border-radius:5px;padding:1px 4px"` : ''}><span><b>${esc(u.loco)}</b> ${esc(u.model)}${dur}</span><span style="color:${soon ? CO.green : 'var(--dim)'};${soon ? 'font-weight:700' : ''}">${soon ? '↩ ' : ''}${etrTxt}</span></div>`;
+    return `<div class="u"${soon ? ` style="background:${tint(CO.green,'14')};border-radius:5px;padding:1px 4px"` : ''}><span><b>${esc(u.loco)}</b> ${esc(u.model)}${dur}</span><span style="color:${soon ? CO.green : 'var(--dim)'};${soon ? 'font-weight:700' : ''}">${soon ? '↩ ' : ''}${etrTxt}</span></div>`;
   }).join('');
   return { key: 'shop', label: 'In shop', count: lsUnits.length,
     cap: `In shop (LS / Shopped) · ${lsUnits.length}${lsSoon ? ` · <span style="color:${CO.green}">${lsSoon} returning ≤24h</span>` : ''}`,
@@ -206,7 +206,7 @@ export function stationPopupOptions() {
 export function deadPopup(d) {
   const noShop = !d.tlat;
   return `<div class="pop">
-    <h3 style="color:${CO.dead}">${esc(d.loco)} <span class="badge" style="background:${CO.dead}22;color:${CO.dead}">${esc(d.op)} DEAD</span></h3>
+    <h3 style="color:${CO.dead}">${esc(d.loco)} <span class="badge" style="background:${tint(CO.dead,'22')};color:${CO.dead}">${esc(d.op)} DEAD</span></h3>
     <div class="loc">${esc(d.model)} · at ${esc(d.rawloc)}</div>
     <div class="row"><span>Action</span><span style="color:${noShop ? CO.red : CO.dead}">${noShop ? 'Assign shop' : 'Move to shop'}</span></div>
     <div class="row"><span>Destination shop</span><span style="color:${noShop ? CO.red : CO.cyan}">${noShop ? '— none —' : esc(d.shop + ' · ' + d.tname)}</span></div>
@@ -218,7 +218,7 @@ export function deadPopup(d) {
 
 export function deadheadPopup(d) {
   return `<div class="pop">
-    <h3 style="color:${CO.inbound}">${esc(d.loco)} <span class="badge" style="background:${CO.inbound}22;color:${CO.inbound}">DH · DEADHEAD</span></h3>
+    <h3 style="color:${CO.inbound}">${esc(d.loco)} <span class="badge" style="background:${tint(CO.inbound,'22')};color:${CO.inbound}">DH · DEADHEAD</span></h3>
     <div class="loc">${esc(d.model)} · from ${esc(d.rawloc)}</div>
     <div class="row"><span>Moving to</span><span style="color:${CO.inbound}">${esc(d.dest)}</span></div>
     <div class="row"><span>ETA</span><span>${esc(d.eta) || '—'}</span></div>

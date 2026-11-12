@@ -1,11 +1,11 @@
 /** Dashboard KPI tiles and their click-to-drill detail panel. */
-import { COLORS as CO, HBO_OPS, SLUG_MODELS } from '../../../core/constants.js';
+import { THEME as CO, tint, HBO_OPS, SLUG_MODELS } from '../../../core/constants.js';
 import { isLowMidHP } from '../../../core/balance.js';
 import { $$, byId } from '../../dom.js';
 import { emit } from '../../state.js';
 
 const netColor = (net) => (net > 0 ? CO.green : net < 0 ? CO.red : CO.even);
-const badge = (c, txt) => `<span class="badge" style="background:${c}22;color:${c};border:1px solid ${c}55">${txt}</span>`;
+const badge = (c, txt) => `<span class="badge" style="background:${tint(c,'22')};color:${c};border:1px solid ${tint(c,'55')}">${txt}</span>`;
 const stLine = (s, sep = '') => `<span class="st">${s.state}${s.zone ? ' · ' + s.zone : sep}</span>`;
 const stLineZone = (s) => `<span class="st">${s.state} · ${s.zone || '—'}</span>`;
 
@@ -22,7 +22,7 @@ const unitTags = (units) => units.map((u) => `<span class="ltag ${u.road ? 'road
  * default border (badge still tinted).
  */
 function card(s, inner, { color, border = true, badgeTxt, dataKey = false, stHtml = stLine(s) } = {}) {
-  const borderStyle = color && border ? ` style="border-color:${color}33"` : '';
+  const borderStyle = color && border ? ` style="border-color:${tint(color,'33')}"` : '';
   return `<div class="kd-card"${dataKey ? ` data-key="${s.k}"` : ''}${borderStyle}>
     <div class="loc"><span>${s.station}</span>${stHtml}${badgeTxt != null ? badge(color || CO.even, badgeTxt) : ''}</div>
     ${inner}</div>`;
@@ -32,11 +32,11 @@ function card(s, inner, { color, border = true, badgeTxt, dataKey = false, stHtm
 export function kpiDefinitions(data, k) {
   const plan = k.plan;
   return [
-    { id: 'req', label: 'Total required', color: '#c7d2e2', value: k.totReq, detail: () => ({
+    { id: 'req', label: 'Total required', color: 'var(--txt2)', value: k.totReq, detail: () => ({
       title: `Required units by location (${plan.length} locations · ${k.totReq} total)`,
       cards: [...plan].sort((a, b) => b.required - a.required).map((s) => `<div class="kd-card">
           <div class="loc"><span>${s.station}</span>${stLine(s)}
-            <span class="badge" style="background:#1a2a3a;color:#c7d2e2;border:1px solid #2b2e36">${s.required}</span></div>
+            <span class="badge" style="background:var(--badge-bg);color:var(--txt2);border:1px solid var(--border)">${s.required}</span></div>
           <div class="locos">${s.req_detail.map(([t, n]) => `<span class="ltag">${n}× ${t}</span>`).join('')}</div></div>`).join(''),
     }) },
     { id: 'have', label: 'Total on hand', color: CO.cyan, value: k.totHave, detail: () => ({
@@ -52,7 +52,7 @@ export function kpiDefinitions(data, k) {
       cards: [...plan].sort((a, b) => (a.have - a.required) - (b.have - b.required)).map((s) => {
         const net = s.have - s.required, nc = netColor(net);
         return card(s, `<div class="locos">
-            <span class="ltag" style="color:#aeb9cc">req ${s.required}</span>
+            <span class="ltag" style="color:var(--txt3b)">req ${s.required}</span>
             <span class="ltag" style="color:${CO.cyan}">have ${s.have}</span>
             ${s.shortfall > 0 ? `<span class="ltag short">−${s.shortfall} short</span>` : ''}
             ${s.spare_n > 0 ? `<span class="ltag" style="color:${CO.green}">+${s.spare_n} spare</span>` : ''}
@@ -98,9 +98,9 @@ export function kpiDefinitions(data, k) {
           const tags = byk[kk].map((x) => {
             const sh = x.tname || x.shop || 'no shop assigned';
             const tip = `${x.model} → ${sh}${x.etr ? ' · ETR ' + x.etr : ''}${x.priority ? ' · prio ' + x.priority : ''}`;
-            return `<span class="ltag" style="border-color:${CO.red}55" title="${tip}">${x.loco}<span style="color:var(--dim)"> → ${x.shop || '?'}</span></span>`;
+            return `<span class="ltag" style="border-color:${tint(CO.red,'55')}" title="${tip}">${x.loco}<span style="color:var(--dim)"> → ${x.shop || '?'}</span></span>`;
           }).join('');
-          return `<div class="kd-card" style="border-color:${CO.red}33"><div class="loc"><span>${kk}</span>${badge(CO.red, byk[kk].length)}</div><div class="locos">${tags}</div></div>`;
+          return `<div class="kd-card" style="border-color:${tint(CO.red,'33')}"><div class="loc"><span>${kk}</span>${badge(CO.red, byk[kk].length)}</div><div class="locos">${tags}</div></div>`;
         }).join(''),
       };
     } },

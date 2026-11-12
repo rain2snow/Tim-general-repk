@@ -25,9 +25,9 @@ aside{background:var(--panel);overflow-y:auto;overflow-x:hidden}
 .toggle{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;
   cursor:pointer;transition:.14s;user-select:none}
 .toggle:hover{background:var(--panel2)}
-.toggle .sw{width:30px;height:17px;border-radius:9px;background:#24272e;position:relative;flex:none;transition:.18s}
+.toggle .sw{width:30px;height:17px;border-radius:9px;background:var(--sw-track);position:relative;flex:none;transition:.18s}
 .toggle .sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;
-  background:#818690;transition:.18s}
+  background:var(--sw-knob);transition:.18s}
 .toggle.on .sw::after{left:15px;background:#fff}
 .toggle.on .sw{background:var(--c)}
 .toggle .mk{width:11px;height:11px;flex:none}
@@ -36,14 +36,14 @@ aside{background:var(--panel);overflow-y:auto;overflow-x:hidden}
 /* day-of-week demand control */
 .dowtog{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;cursor:pointer;--c:var(--cn)}
 .dowtog:hover{background:var(--panel2)}
-.dowtog .sw{width:30px;height:17px;border-radius:9px;background:#24272e;position:relative;flex:none;transition:.18s}
-.dowtog .sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#6b7280;transition:.18s}
+.dowtog .sw{width:30px;height:17px;border-radius:9px;background:var(--sw-track);position:relative;flex:none;transition:.18s}
+.dowtog .sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--sw-knob2);transition:.18s}
 .dowtog.on .sw{background:var(--c)} .dowtog.on .sw::after{left:15px;background:#fff}
 .dowtog .nm{font-size:12.5px;flex:1} .dowtog .n{font-size:11px;color:var(--dim);font-family:'IBM Plex Mono'}
 .dowdays{display:flex;gap:4px;margin:8px 2px 4px}
-.dowdays button{flex:1;padding:6px 0;border:1px solid #2a2e36;background:var(--panel2);color:var(--dim);
+.dowdays button{flex:1;padding:6px 0;border:1px solid var(--border);background:var(--panel2);color:var(--dim);
   border-radius:6px;font-family:'IBM Plex Mono';font-size:12px;cursor:pointer;transition:.12s}
-.dowdays button:hover{color:#fff;border-color:#3a3f49}
+.dowdays button:hover{color:var(--txt-hi);border-color:var(--border2)}
 .dowdays button.on{background:var(--cn);color:#fff;border-color:var(--cn);font-weight:600}
 .dowhint{font-size:11px;color:var(--dim);margin:3px 3px 0;line-height:1.45}
 

@@ -91,12 +91,16 @@ export function installBasemap(map) {
     baseLayer = lyr; window.__basemap = b.name;
   }
 
-  async function init() {
+  // light theme prefers the light Esri canvas, dark the dark one
+  const order = (theme) => (theme === 'light' ? [1, 0, 2] : [0, 1, 2]);
+  let current = -1;
+
+  async function init(theme) {
     const token = ++baseToken;
-    for (let i = 0; i < BASEMAPS.length; i++) {
+    for (const i of order(theme)) {
       const ok = await probeTile(BASEMAPS[i].probe);
       if (token !== baseToken) return; // user forced a source meanwhile
-      if (ok) { attach(i); return; }
+      if (ok) { attach(i); current = i; return; }
     }
     window.__basemap = 'none';
     console.info('[basemap] no tile source reachable - running without background map (all data layers active)');
@@ -104,9 +108,17 @@ export function installBasemap(map) {
 
   window.setBasemap = (i) => {
     i = +i;
-    if (!(i >= 0 && i < BASEMAPS.length)) { detach(); baseToken++; window.__basemap = 'none'; return 'none'; }
-    attach(i);
+    if (!(i >= 0 && i < BASEMAPS.length)) { detach(); baseToken++; window.__basemap = 'none'; current = -1; return 'none'; }
+    attach(i); current = i;
     return BASEMAPS[i].name;
   };
-  init();
+  init(document.documentElement.dataset.theme);
+
+  return {
+    /** Swap Esri dark <-> light canvas to match the theme (only when one of them is showing). */
+    matchTheme(theme) {
+      const want = theme === 'light' ? 1 : 0;
+      if ((current === 0 || current === 1) && current !== want) window.setBasemap(want);
+    },
+  };
 }

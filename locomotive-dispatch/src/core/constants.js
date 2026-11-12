@@ -12,6 +12,25 @@ export const COLORS = Object.freeze({
   inbound: '#7ec8ff',
 });
 
+/**
+ * The same palette as theme-aware CSS variables, for colours written into HTML (popups, cards,
+ * badges). Map shapes keep the hex COLORS (SVG attributes cannot resolve var()).
+ */
+export const THEME = Object.freeze({
+  red: 'var(--red)',
+  amber: 'var(--amber)',
+  green: 'var(--green)',
+  cyan: 'var(--cyan)',
+  dead: 'var(--dead)',
+  even: 'var(--steel)',
+  violet: 'var(--violet)',
+  inbound: 'var(--lcs)',
+});
+
+/** Translucent tint of a colour (hex or var()) — `alpha` as the 2-digit hex alpha used before, e.g. '22'. */
+export const tint = (color, alpha) =>
+  `color-mix(in srgb, ${color} ${+(parseInt(alpha, 16) / 2.55).toFixed(1)}%, transparent)`;
+
 /** STP exports use QC; the captive plan keys Quebec as PQ. */
 export const STATE_FIX = Object.freeze({ QC: 'PQ' });
 /** Display-side reverse mapping (plan key PQ -> shown as QC). */

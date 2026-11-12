@@ -6,7 +6,7 @@
 .qhead .seg button{flex:1;font:inherit;font-size:11px;color:var(--dim);background:var(--panel2);
   border:1px solid var(--border);border-radius:6px;padding:6px 4px;cursor:pointer;transition:.14s}
 .qhead .seg button:hover{color:var(--txt)}
-.qhead .seg button.on{background:var(--panel3);color:#fff;border-color:var(--cn)}
+.qhead .seg button.on{background:var(--panel3);color:var(--txt-hi);border-color:var(--cn)}
 .qhead .seg button .b{font-family:'IBM Plex Mono';font-weight:600}
 
 .item{padding:11px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:.13s;
@@ -21,7 +21,7 @@
 .item .act{font-size:11px;color:var(--dim);line-height:1.4}
 .item .act .hi{color:var(--txt);font-weight:500}
 .item .meta{display:flex;gap:10px;margin-top:5px;font-size:10px;color:var(--faint);font-family:'IBM Plex Mono';flex-wrap:wrap}
-.item .meta .pill{padding:2px 6px;border-radius:4px;background:#ffffff0d}
+.item .meta .pill{padding:2px 6px;border-radius:4px;background:var(--wash)}
 .item .meta .urg{color:var(--red);background:var(--short-bg)}
 .item .meta .due{color:var(--amber);background:var(--amber-bg)}
 .item .arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--faint);
@@ -51,7 +51,7 @@
 .hpill{font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap}
 .hpill.short{color:var(--red);background:var(--short-bg)}
 .hpill.surplus{color:var(--green);background:var(--green-bg)}
-.hpill.balanced{color:var(--steel);background:#ffffff0d}
+.hpill.balanced{color:var(--steel);background:var(--wash)}
 .hchips{display:flex;gap:6px;padding:0 14px 8px 31px;flex-wrap:wrap}
 .hc{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--dim)}
 .hc.short{color:var(--red)} .hc.od{color:var(--amber)} .hc.dead{color:var(--dead)}
@@ -60,7 +60,7 @@
 /* region level (tactical): Region -> Hub -> actions */
 .reggrp{border-bottom:2px solid var(--border2)}
 .regh{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;background:var(--panel3);position:sticky;top:0;z-index:3}
-.regh:hover{background:#2c3038}
+.regh:hover{background:var(--panel3-h)}
 .regh .tw{color:var(--dim);font-size:10px;transition:transform .15s}
 .reggrp.collapsed .regh .tw{transform:rotate(-90deg)}
 .reggrp.collapsed .regbody{display:none}
@@ -86,7 +86,7 @@
 .hrow{display:grid;grid-template-columns:1fr 70px auto;grid-template-rows:auto auto;column-gap:8px;align-items:center;padding:6px;border-radius:6px;cursor:pointer}
 .hrow:hover{background:var(--panel2)}
 .hrow .hn{font-size:12px;color:var(--txt);font-weight:500}
-.hrow .hbar{position:relative;height:6px;background:#ffffff0a;border-radius:3px}
+.hrow .hbar{position:relative;height:6px;background:var(--wash-bar);border-radius:3px}
 .hrow .hbar::after{content:'';position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--border2)}
 .hrow .hbar i{position:absolute;top:0;bottom:0;border-radius:3px}
 .hrow .hbar i.neg{background:var(--red)} .hrow .hbar i.pos{background:var(--green)}

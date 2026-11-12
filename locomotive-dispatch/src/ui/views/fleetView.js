@@ -60,7 +60,7 @@ function cardsByLocation(units) {
   const byLoc = {};
   units.forEach((u) => { const L = u.loc || '—'; (byLoc[L] = byLoc[L] || []).push(u); });
   return '<div class="kd-grid">' + Object.keys(byLoc).sort((a, b) => byLoc[b].length - byLoc[a].length).map((L) => {
-    const tags = byLoc[L].map((u) => '<span class="ltag' + (u.road ? ' road' : '') + '">' + esc(u.loco) + ' <span style="color:#5a6b80">' + esc(u.model) + '</span></span>').join('');
+    const tags = byLoc[L].map((u) => '<span class="ltag' + (u.road ? ' road' : '') + '">' + esc(u.loco) + ' <span style="color:var(--faint2)">' + esc(u.model) + '</span></span>').join('');
     return '<div class="kd-card"><div class="loc">' + esc(L) + '<span class="st">' + byLoc[L].length + ' unit' + (byLoc[L].length > 1 ? 's' : '') + '</span></div><div class="locos">' + tags + '</div></div>';
   }).join('') + '</div>';
 }

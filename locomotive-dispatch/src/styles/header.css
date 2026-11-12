@@ -1,6 +1,6 @@
 header{
-  grid-column:1/4;display:flex;align-items:center;gap:18px;
-  padding:0 18px;background:#0a0a0b;
+  grid-column:1/4;display:flex;align-items:center;gap:12px;
+  padding:0 18px;background:var(--chrome);
   border-bottom:2px solid var(--cn);z-index:1000;
 }
 .brand{display:flex;align-items:center;gap:11px;min-width:0}
@@ -21,8 +21,10 @@ header{
 .snap .live{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);
   margin-right:6px;box-shadow:0 0 6px var(--green);animation:blink 2.4s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-.legend{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap}
+.legend{margin-left:auto;display:flex;gap:5px 10px;flex-wrap:wrap}
 .legend .li{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);white-space:nowrap}
 .legend .dot{width:9px;height:9px;border-radius:50%}
 .legend .dia{width:9px;height:9px;transform:rotate(45deg);border-radius:1px}
 .legend .sq{width:9px;height:9px;border-radius:2px}
+/* narrower desktops: keep the legend to two rows next to the toggle + tabs */
+@media(max-width:1499px){.legend{gap:4px 8px}.legend .li{font-size:10.5px;gap:5px}}

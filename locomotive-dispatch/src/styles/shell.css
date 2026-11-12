@@ -15,7 +15,7 @@
 .shell.rcol #reopen-right{display:flex}
 .shell.dashmode .reopen-tab,.shell.actmode .reopen-tab,.shell.fleetmode .reopen-tab,.shell.planmode .reopen-tab{display:none!important}
 /* view switcher */
-.vtab{display:flex;gap:2px;background:#0c1422;border:1px solid var(--border2);border-radius:7px;padding:3px}
+.vtab{display:flex;gap:2px;background:var(--nav-bg);border:1px solid var(--border2);border-radius:7px;padding:3px}
 .vtab button{background:transparent;border:0;color:var(--dim);font:inherit;font-size:12px;font-weight:600;
   padding:5px 13px;border-radius:5px;cursor:pointer;letter-spacing:.3px;transition:.15s}
 .vtab button:hover{color:var(--txt)}
