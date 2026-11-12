@@ -5,22 +5,23 @@
       "A station belongs to the hub that owns its zone.",
       "A hub always owns the zone its shop(s) sit in (e.g. Woodcrest is in IOWA, so Chicago shares IOWA with Waterloo).",
       "A zone owned by more than one hub is split: each station goes to the nearest of those hubs' shops.",
-      "Stations with no zone, or in a zone no hub owns, go to the nearest hub."
+      "Stations with no zone, or in a zone no hub owns, go to the nearest hub.",
+      "Each hub sits in one plan region (East / West / South) for grouping; if omitted, the majority region of its stations is used."
     ]
   },
   "hubs": [
-    { "id": "MTL", "name": "Montreal", "shops": ["TAS"], "zones": ["QUEBEC", "ATLANTIC"] },
-    { "id": "TOR", "name": "Toronto", "shops": ["MAC"], "zones": ["GR TORONTO AREA", "SOUTHERN ONTARIO", "NORTHERN ONTARIO"] },
-    { "id": "WPG", "name": "Winnipeg", "shops": ["SYM", "TRN"], "zones": ["WINNIPEG", "MANITOBA"] },
-    { "id": "EDM", "name": "Edmonton", "shops": ["EDM"], "zones": ["YELLOWHEAD WEST", "YELLOWHEAD EAST", "ALBERTA WEST"] },
-    { "id": "PGE", "name": "Prince George", "shops": ["PRG"], "zones": ["BC NORTH"] },
-    { "id": "VAN", "name": "Vancouver", "shops": ["THO"], "zones": ["BC SOUTH"] },
-    { "id": "CHI", "name": "Chicago", "shops": ["KIR", "WCT"], "zones": ["CHICAGO", "ILLINOIS", "MICHIGAN", "IOWA"] },
-    { "id": "WAT", "name": "Waterloo", "shops": ["BYT"], "zones": ["IOWA", "IOWA NORTHERN"] },
-    { "id": "FDL", "name": "Fond du Lac", "shops": ["FDL"], "zones": ["VALLEY"] },
-    { "id": "DUL", "name": "Duluth", "shops": ["PRO"], "zones": ["LAKE"] },
-    { "id": "STP", "name": "Stevens Point", "shops": ["STP"], "zones": ["LAKE"] },
-    { "id": "MEM", "name": "Memphis", "shops": ["MEM"], "zones": ["MEMPHIS"] },
-    { "id": "BTR", "name": "Baton Rouge", "shops": ["GLF"], "zones": ["DELTA"] }
+    { "id": "MTL", "region": "East", "name": "Montreal", "shops": ["TAS"], "zones": ["QUEBEC", "ATLANTIC"] },
+    { "id": "TOR", "region": "East", "name": "Toronto", "shops": ["MAC"], "zones": ["GR TORONTO AREA", "SOUTHERN ONTARIO", "NORTHERN ONTARIO"] },
+    { "id": "WPG", "region": "West", "name": "Winnipeg", "shops": ["SYM", "TRN"], "zones": ["WINNIPEG", "MANITOBA"] },
+    { "id": "EDM", "region": "West", "name": "Edmonton", "shops": ["EDM"], "zones": ["YELLOWHEAD WEST", "YELLOWHEAD EAST", "ALBERTA WEST"] },
+    { "id": "PGE", "region": "West", "name": "Prince George", "shops": ["PRG"], "zones": ["BC NORTH"] },
+    { "id": "VAN", "region": "West", "name": "Vancouver", "shops": ["THO"], "zones": ["BC SOUTH"] },
+    { "id": "CHI", "region": "South", "name": "Chicago", "shops": ["KIR", "WCT"], "zones": ["CHICAGO", "ILLINOIS", "MICHIGAN", "IOWA"] },
+    { "id": "WAT", "region": "South", "name": "Waterloo", "shops": ["BYT"], "zones": ["IOWA", "IOWA NORTHERN"] },
+    { "id": "FDL", "region": "South", "name": "Fond du Lac", "shops": ["FDL"], "zones": ["VALLEY"] },
+    { "id": "DUL", "region": "South", "name": "Duluth", "shops": ["PRO"], "zones": ["LAKE"] },
+    { "id": "STP", "region": "South", "name": "Stevens Point", "shops": ["STP"], "zones": ["LAKE"] },
+    { "id": "MEM", "region": "South", "name": "Memphis", "shops": ["MEM"], "zones": ["MEMPHIS"] },
+    { "id": "BTR", "region": "South", "name": "Baton Rouge", "shops": ["GLF"], "zones": ["DELTA"] }
   ]
 }

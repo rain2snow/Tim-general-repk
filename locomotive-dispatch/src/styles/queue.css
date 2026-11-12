@@ -57,6 +57,20 @@
 .hc.short{color:var(--red)} .hc.od{color:var(--amber)} .hc.dead{color:var(--dead)}
 .hubbody .item{padding-left:24px}
 .item.xfer .tag{background:var(--violet)}
+/* region level (tactical): Region -> Hub -> actions */
+.reggrp{border-bottom:2px solid var(--border2)}
+.regh{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;background:var(--panel3);position:sticky;top:0;z-index:3}
+.regh:hover{background:#2c3038}
+.regh .tw{color:var(--dim);font-size:10px;transition:transform .15s}
+.reggrp.collapsed .regh .tw{transform:rotate(-90deg)}
+.reggrp.collapsed .regbody{display:none}
+.regh .rn{font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--txt)}
+.regh .rchips{display:flex;gap:7px;flex-wrap:wrap;min-width:0}
+.regh .hcnt{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--dim)}
+.regbody .hubh{top:38px;padding-left:22px}
+.regbody .hchips{padding-left:39px}
+.regbody .hubbody .item{padding-left:32px}
+
 /* strategic */
 .sys{margin:12px 14px 4px;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--panel2)}
 .sys-h{font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;font-size:12px;color:var(--txt);display:flex;justify-content:space-between}

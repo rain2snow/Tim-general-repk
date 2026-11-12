@@ -94,8 +94,13 @@ it sits in. `data/hubs.json` is editable and sets which shops form each hub and 
 `src/core/hubs.js` builds the model, counting shared pools once at their primary station. The
 console **Action queue** has two modes:
 
-* **Tactical (by hub).** Actions are grouped under the hub that owns them. Hubs that can't cover
-  themselves come first, then hubs with overdue inspections. Each action carries a hub-level
+* **Tactical (by hub).** A collapsible **Region (East / West / South) → Hub → actions** tree. Each hub
+  sits in one region, set by `region` in `hubs.json` or by the majority region of its stations.
+  * Regions open expanded and hubs open folded, so the queue starts as an overview. Each hub
+    header shows its status and its short / overdue / dead counts. Expand a hub to work its actions.
+  * Choosing a type filter (Route / Station / Re-task) opens the matching hubs.
+  * Within a region, hubs that can't cover themselves come first, then hubs with overdue
+    inspections. Each action carries a hub-level
   instruction:
   * Shortages: an *allocated* in-hub cover, such as "Cover in hub: 2 from SMITH (SD40)". Each
     donor's spare units are drawn down only once. Any remainder is marked *escalated to Strategic*.

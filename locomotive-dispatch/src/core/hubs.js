@@ -12,7 +12,9 @@ import { findDonors } from './planning.js';
 import { isGrouped } from './pools.js';
 import { buildQueueActions } from './queue.js';
 
-export const UNASSIGNED_HUB = { id: 'NONE', name: 'Unassigned', shops: [], zones: [] };
+export const UNASSIGNED_HUB = { id: 'NONE', name: 'Unassigned', region: 'Unassigned', shops: [], zones: [] };
+/** Region display order for the tactical view. */
+export const HUB_REGION_ORDER = ['East', 'West', 'South', 'Unassigned'];
 
 /** Distance (km) from a point to a hub (its nearest shop). */
 function hubDistance(hub, lat, lng) {
@@ -97,6 +99,14 @@ export function buildHubModel(data, config, { retask = [] } = {}) {
 
   const balances = hubs.map((h) => {
     const a = agg[h.id];
+    // region: configured, else the majority region of the hub's stations
+    let region = h.region;
+    if (!region) {
+      const tally = {};
+      a.stations.forEach((k) => { const r = stationsByKey[k].region; if (r) tally[r] = (tally[r] || 0) + 1; });
+      region = Object.keys(tally).sort((x, y) => tally[y] - tally[x])[0] || 'Unassigned';
+    }
+    h = { ...h, region };
     const cover = Math.min(a.short, a.surplus);
     const residualShort = a.short - cover, residualSurplus = a.surplus - cover;
     const status = residualShort > 0 ? 'short' : residualSurplus > 0 ? 'surplus' : 'balanced';

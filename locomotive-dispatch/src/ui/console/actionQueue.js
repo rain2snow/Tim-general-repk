@@ -7,7 +7,7 @@
 import { esc } from '../../core/html.js';
 import { countByType } from '../../core/queue.js';
 import { planState } from '../../core/store.js';
-import { hubSeverity, UNASSIGNED_HUB } from '../../core/hubs.js';
+import { hubSeverity, UNASSIGNED_HUB, HUB_REGION_ORDER } from '../../core/hubs.js';
 import { $, $$, byId, setText, isMobile, flashSaved } from '../dom.js';
 import { app, emit } from '../state.js';
 import { map, markerByKey, deadByLoco, flyToMarker, layerForStatus } from '../map/mapView.js';
@@ -15,7 +15,10 @@ import { ensureLayerShown } from './layerToggles.js';
 
 let mode = 'tactical';
 let filter = 'all';
-const collapsed = new Set();          // hub ids the dispatcher has folded
+// Fold state survives repaints. Regions start open; hubs start folded so the queue opens as an
+// overview (region -> hubs with status) and a hub is expanded to work its actions.
+const collapsed = new Set();          // 'region:<name>' the dispatcher has folded
+const openHubs = new Set();           // hub ids the dispatcher has expanded
 
 const allActions = () => Object.values((app.hubModel && app.hubModel.tactical) || {}).flat();
 
@@ -112,23 +115,47 @@ function tacticalHtml() {
     const a = hubSeverity(hm.byId[x.b.id], x.acts), b = hubSeverity(hm.byId[y.b.id], y.acts);
     return b[0] - a[0] || b[1] - a[1] || b[2] - a[2] || b[3] - a[3];
   });
-  return groups.map(({ b, acts }) => {
-    const bal = hm.byId[b.id];
+  // Region -> hub -> actions
+  const byRegion = {};
+  groups.forEach((g) => { const r = (hm.byId[g.b.id] || g.b).region || 'Unassigned'; (byRegion[r] = byRegion[r] || []).push(g); });
+  const regions = Object.keys(byRegion).sort((a, b) => {
+    const ia = HUB_REGION_ORDER.indexOf(a), ib = HUB_REGION_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+  });
+  return regions.map((r) => {
+    const gs = byRegion[r];
+    const acts = gs.flatMap((g) => g.acts);
+    const hubsShort = gs.filter((g) => hm.byId[g.b.id] && hm.byId[g.b.id].status === 'short').length;
     const overdue = acts.filter((a) => a.overdue).length;
     const short = acts.filter((a) => a.actid.startsWith('short:')).length;
-    const dead = acts.filter((a) => a.type === 'route').length;
-    const chips = [short && `<span class="hc short">${short} short</span>`, overdue && `<span class="hc od">${overdue} overdue</span>`,
-      dead && `<span class="hc dead">${dead} dead</span>`].filter(Boolean).join('');
-    const items = acts.map((a) => { tacticalIndex.push(a); return itemHtml(a, tacticalIndex.length - 1); }).join('');
-    return `<div class="hubgrp${collapsed.has(b.id) ? ' collapsed' : ''}" data-hub="${b.id}">
-      <div class="hubh"><span class="tw">▾</span>
-        <span class="hn">${esc(b.name)}</span><span class="hs">${esc(shopCodes(b) || 'no shop')}</span>
-        ${bal ? statusPill(bal) : ''}<span class="hcnt">${acts.length}</span>
-        ${bal ? `<button class="hfly" title="Show this hub on the map">⌖</button>` : ''}
-      </div>
-      ${chips ? `<div class="hchips">${chips}</div>` : ''}
-      <div class="hubbody">${items}</div></div>`;
+    const chips = [hubsShort && `<span class="hc short">${hubsShort} hub${hubsShort > 1 ? 's' : ''} short</span>`,
+      short && `<span class="hc">${short} short loc.</span>`, overdue && `<span class="hc od">${overdue} overdue</span>`,
+      `<span class="hc">${gs.length} hub${gs.length > 1 ? 's' : ''}</span>`].filter(Boolean).join('');
+    const key = 'region:' + r;
+    return `<div class="reggrp${collapsed.has(key) ? ' collapsed' : ''}" data-region="${esc(r)}">
+      <div class="regh"><span class="tw">▾</span><span class="rn">${esc(r)}</span>
+        <span class="rchips">${chips}</span><span class="hcnt">${acts.length}</span></div>
+      <div class="regbody">${gs.map(hubGroupHtml).join('')}</div></div>`;
   }).join('');
+}
+
+function hubGroupHtml({ b, acts }) {
+  const bal = app.hubModel.byId[b.id];
+  const overdue = acts.filter((a) => a.overdue).length;
+  const short = acts.filter((a) => a.actid.startsWith('short:')).length;
+  const dead = acts.filter((a) => a.type === 'route').length;
+  const chips = [short && `<span class="hc short">${short} short</span>`, overdue && `<span class="hc od">${overdue} overdue</span>`,
+    dead && `<span class="hc dead">${dead} dead</span>`].filter(Boolean).join('');
+  const items = acts.map((a) => { tacticalIndex.push(a); return itemHtml(a, tacticalIndex.length - 1); }).join('');
+  const folded = filter === 'all' && !openHubs.has(b.id);   // a type filter shows its hubs open
+  return `<div class="hubgrp${folded ? ' collapsed' : ''}" data-hub="${b.id}">
+    <div class="hubh"><span class="tw">▾</span>
+      <span class="hn">${esc(b.name)}</span><span class="hs">${esc(shopCodes(b) || 'no shop')}</span>
+      ${bal ? statusPill(bal) : ''}<span class="hcnt">${acts.length}</span>
+      ${bal ? `<button class="hfly" title="Show this hub on the map">⌖</button>` : ''}
+    </div>
+    ${chips ? `<div class="hchips">${chips}</div>` : ''}
+    <div class="hubbody">${items}</div></div>`;
 }
 
 /* ------------------------------------------------------------------ strategic */
@@ -214,11 +241,16 @@ function flyToHubs(ids) {
 }
 
 function wire(q) {
+  $$('.regh', q).forEach((h) => h.addEventListener('click', () => {
+    const g = h.parentNode, key = 'region:' + g.dataset.region;
+    g.classList.toggle('collapsed');
+    if (g.classList.contains('collapsed')) collapsed.add(key); else collapsed.delete(key);
+  }));
   $$('.hubh', q).forEach((h) => h.addEventListener('click', (e) => {
     const g = h.parentNode, id = g.dataset.hub;
     if (e.target.closest('.hfly')) { flyToHubs([id]); return; }
     g.classList.toggle('collapsed');
-    if (g.classList.contains('collapsed')) collapsed.add(id); else collapsed.delete(id);
+    if (g.classList.contains('collapsed')) openHubs.delete(id); else openHubs.add(id);
   }));
   $$('.hrow', q).forEach((r) => r.addEventListener('click', () => flyToHubs([r.dataset.hub])));
   $$('.item', q).forEach((el) => {

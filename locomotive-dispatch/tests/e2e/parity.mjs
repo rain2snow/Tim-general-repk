@@ -48,7 +48,7 @@ const TEXT_IDS = ['snapdate', 'netcount', 't-short', 't-even', 't-surp', 't-dead
 async function consoleState(page) {
   return page.evaluate((ids) => ({
     ...Object.fromEntries(ids.map((id) => [id, document.getElementById(id).textContent])),
-    queue: [...document.querySelectorAll('#queue .item')].map((el) => { const h = el.querySelector('.hint'); return h ? el.innerText.replace(h.innerText, '') : el.innerText; }).sort(),
+    queue: (document.querySelectorAll('#queue .collapsed').forEach((g) => g.classList.remove('collapsed')), [...document.querySelectorAll('#queue .item')]).map((el) => { const h = el.querySelector('.hint'); return h ? el.innerText.replace(h.innerText, '') : el.innerText; }).sort(),
     markers: document.querySelectorAll('.leaflet-marker-icon').length,
     // the rail layer intentionally changed (schematic corridors -> CN network): exclude it here
     paths: document.querySelectorAll('.leaflet-overlay-pane path').length -
@@ -142,7 +142,7 @@ async function planInteraction(page) {
   const chips = await page.evaluate(() => document.querySelector('.act-sum').textContent);
   await clickView(page, 'console');
   await page.waitForTimeout(200);
-  return { chips, queue: await page.evaluate(() => [...document.querySelectorAll('#queue .item')].map((el) => { const h = el.querySelector('.hint'); return h ? el.innerText.replace(h.innerText, '') : el.innerText; }).sort()),
+  return { chips, queue: await page.evaluate(() => (document.querySelectorAll('#queue .collapsed').forEach((g) => g.classList.remove('collapsed')), [...document.querySelectorAll('#queue .item')]).map((el) => { const h = el.querySelector('.hint'); return h ? el.innerText.replace(h.innerText, '') : el.innerText; }).sort()),
     ticks: await page.evaluate(() => document.querySelectorAll('.mk-plan').length) };
 }
 
@@ -190,10 +190,14 @@ async function uploadState(browser, url, csvFile) {
 
 async function collect(browser, url, rebuilt, csvFile) {
   const { page, errors } = await open(browser, url);
+  // read the default fold state before consoleState() unfolds everything to read the actions
+  const hubGroups = rebuilt ? await page.evaluate(() => ({ groups: document.querySelectorAll('#queue .hubgrp').length,
+    items: document.querySelectorAll('#queue .reggrp .hubgrp .item').length,
+    regions: [...document.querySelectorAll('#queue .reggrp')].map((r) => r.dataset.region),
+    foldedByDefault: document.querySelectorAll('#queue .hubgrp.collapsed').length })) : null;
   const state = {
     console: await consoleState(page),
-    hubGroups: rebuilt ? await page.evaluate(() => ({ groups: document.querySelectorAll('#queue .hubgrp').length,
-      items: document.querySelectorAll('#queue .hubgrp .item').length })) : null,
+    hubGroups,
     popups: await popups(page, rebuilt),
     search: await searchState(page),
     dashboard: await dashboardState(page),
@@ -251,6 +255,9 @@ try {
   // Intentional change 4: the queue is grouped by hub (tactical) with an in-hub hint per action, so
   // items are compared as a set with the hint line removed; check every action carries its hub group.
   const grouped = rebuilt.hubGroups;
+  if (grouped && (grouped.regions.join() !== 'East,West,South' || grouped.foldedByDefault !== grouped.groups)) {
+    console.error('expected regions East, West, South with hubs folded by default', grouped); process.exitCode = 1;
+  }
   if (!grouped || grouped.items !== rebuilt.console.queue.length + fix1[0] || grouped.groups < 5) {
     console.error('expected every tactical action inside a hub group', grouped); process.exitCode = 1;
   }
@@ -268,7 +275,7 @@ try {
   const popupCount = Object.keys(rebuilt.popups).length;
   console.log(`compared: ${TEXT_IDS.length} console counters, ${popupCount} map popups, 8 KPI drill-downs, ` +
     `${Object.keys(rebuilt.fleet.drill).length} fleet drill-downs, Actions Required, both CSV exports, 7 demand days, plan entry, STP CSV upload`);
-  console.log(`intentional changes verified: +${fix1[0]} re-task actions in console queue on load; DONE flags refresh after resolving; ${railLines} CN rail lines; queue in ${grouped.groups} hub groups`);
+  console.log(`intentional changes verified: +${fix1[0]} re-task actions in console queue on load; DONE flags refresh after resolving; ${railLines} CN rail lines; queue in ${grouped.regions.join('/')} -> ${grouped.groups} hubs`);
   console.log(`markers ${orig.console.markers}/${rebuilt.console.markers}  paths ${orig.console.paths}/${rebuilt.console.paths}  queue items ${rebuilt.console.queue.length}`);
   if (errs.length) { console.error('page errors in rebuilt app:', errs); process.exitCode = 1; }
   if (d.length) {

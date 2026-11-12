@@ -36,6 +36,25 @@ describe('hub assignment', () => {
   });
 });
 
+describe('hub regions', () => {
+  it('places every hub in East, West or South', () => {
+    const m = model();
+    expect(m.hubs.map((b) => b.region).every((r) => ['East', 'West', 'South'].includes(r))).toBe(true);
+    expect(m.byId.TOR.region).toBe('East');
+    expect(m.byId.EDM.region).toBe('West');
+    expect(m.byId.CHI.region).toBe('South');
+  });
+
+  it('falls back to the majority region of the hub’s stations', () => {
+    const data = fresh();
+    const noRegion = { hubs: config.hubs.map(({ region, ...h }) => h) };
+    const m = buildHubModel(data, noRegion);
+    expect(m.byId.MTL.region).toBe('East');
+    expect(m.byId.VAN.region).toBe('West');
+    expect(m.byId.MEM.region).toBe('South');
+  });
+});
+
 describe('hub balance', () => {
   const m = model();
 
