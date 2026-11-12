@@ -1,7 +1,8 @@
-/** The console map: layers, markers, routing lines, schematic corridors, plan ticks, fly-to. */
+/** The console map: layers, markers, routing lines, CN rail network, plan ticks, fly-to. */
 import L from 'leaflet';
 import { COLORS as CO } from '../../core/constants.js';
-import { schematicCorridors } from '../../core/geo.js';
+import { resolveNetwork, lineLengthKm } from '../../core/network.js';
+import { esc } from '../../core/html.js';
 import { stationPlanState } from '../../core/store.js';
 import { app } from '../state.js';
 import { installBasemap } from './basemap.js';
@@ -77,12 +78,30 @@ function renderStations(stations) {
   });
 }
 
-function renderTracks(stations) {
-  try {
-    const P = stations.filter((s) => s.lat != null && s.lng != null).map((s) => [s.lat, s.lng]);
-    schematicCorridors(P).forEach(([a, b]) =>
-      L.polyline([P[a], P[b]], { color: '#d99632', weight: 1.5, opacity: 0.5, interactive: false }).addTo(layers.tracks));
-  } catch (e) { console.warn('tracks build failed', e); }
+const RAIL_STYLE = {
+  main: { color: '#e8a13a', weight: 2.4, opacity: 0.8 },
+  secondary: { color: '#d99632', weight: 1.3, opacity: 0.55, dashArray: null },
+};
+
+/**
+ * Draw the CN rail network (static: drawn once, independent of the snapshot).
+ * Lines sit underneath the markers; hovering one names it.
+ * @returns summary {lines, km} for the layer toggle count
+ */
+export function renderNetwork(network, stations) {
+  layers.tracks.clearLayers();
+  const { lines, unresolved } = resolveNetwork(network, stations);
+  if (unresolved.length) console.warn('[network] unresolved waypoints:', unresolved.join(', '));
+  // secondary first so main lines draw on top
+  [...lines].sort((a, b) => (a.class === 'main') - (b.class === 'main')).forEach((ln) => {
+    const style = RAIL_STYLE[ln.class] || RAIL_STYLE.secondary;
+    L.polyline(ln.path, { ...style, className: 'cn-rail cn-rail-' + ln.class })
+      .bindTooltip(`<b>${esc(ln.name)}</b><br><span style="opacity:.7">CN ${ln.class} line · ~${Math.round(lineLengthKm(ln)).toLocaleString()} km</span>`, { sticky: true, className: 'rail-tip' })
+      .on('mouseover', (e) => e.target.setStyle({ weight: style.weight + 1.6, opacity: 1 }))
+      .on('mouseout', (e) => e.target.setStyle(style))
+      .addTo(layers.tracks);
+  });
+  return { lines: lines.length, km: Math.round(lines.reduce((a, l) => a + lineLengthKm(l), 0)) };
 }
 
 function renderShops(shops) {
@@ -111,11 +130,10 @@ const clearIndex = (o) => Object.keys(o).forEach((k) => delete o[k]);
 
 /** Rebuild every data layer from the current snapshot. */
 export function renderMap(data) {
-  Object.values(layers).forEach((l) => l.clearLayers());
+  Object.entries(layers).forEach(([name, l]) => { if (name !== 'tracks') l.clearLayers(); }); // network is static
   routeLines.clearLayers(); dhLines.clearLayers();
   [markerByKey, deadByLoco, dhByLoco].forEach(clearIndex);
   renderStations(data.stations);
-  renderTracks(data.stations);
   renderShops(data.shops);
   // dead units: march toward the assigned shop
   renderMovers(data.dead, { layer: layers.dead, lines: routeLines, index: deadByLoco, color: CO.dead, size: 13, dash: '6 8', opacity: 0.65, popup: deadPopup });

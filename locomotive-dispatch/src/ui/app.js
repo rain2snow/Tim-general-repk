@@ -5,7 +5,7 @@ import { formatSnapshotLabel } from '../core/dates.js';
 import { stationPlanState } from '../core/store.js';
 import { $$, setText } from './dom.js';
 import { app, on, emit } from './state.js';
-import { initMap, renderMap, renderPlanMarks, invalidateMapSize } from './map/mapView.js';
+import { initMap, renderMap, renderNetwork, renderPlanMarks, invalidateMapSize } from './map/mapView.js';
 import { initLayerToggles } from './console/layerToggles.js';
 import { renderCounts } from './console/counts.js';
 import { initDemandToggle } from './console/demandToggle.js';
@@ -53,8 +53,14 @@ function refreshPlanMarks() {
   $$('#kpi-detail .kd-card[data-key]').forEach((c) => c.classList.toggle('planned', planned(c.dataset.key)));
 }
 
-export function startApp({ snapshot, reference }) {
+export function startApp({ snapshot, reference, network }) {
   initMap('map');
+  if (network) {
+    const n = renderNetwork(network, reference.plan.plan);
+    setText('n-rail', n.lines);
+    const tog = document.querySelector('.toggle[data-layer="tracks"]');
+    if (tog) tog.title = `${n.lines} CN lines · ~${n.km.toLocaleString()} route-km`;
+  }
   initLayerToggles();
   initDemandToggle(render);
   initTiles();

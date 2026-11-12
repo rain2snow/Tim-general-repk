@@ -18,28 +18,3 @@ export function nearestShop(shops, lat, lng) {
 }
 
 export const shopByCode = (shops, code) => (shops || []).find((x) => x.code === code) || null;
-
-/**
- * Schematic rail corridors: link each station to its 2 nearest neighbours within a
- * latitude-corrected squared-degree cap. Returns unique [a, b] index pairs into `points`.
- */
-export function schematicCorridors(points, cap = 10.24, neighbours = 2) {
-  const n = points.length, seen = new Set(), out = [];
-  if (n < 2) return out;
-  const d2 = (a, b) => {
-    const c = Math.cos(((a[0] + b[0]) * Math.PI) / 360), dx = (a[1] - b[1]) * c, dy = a[0] - b[0];
-    return dx * dx + dy * dy;
-  };
-  for (let i = 0; i < n; i++) {
-    const o = [];
-    for (let j = 0; j < n; j++) if (j !== i) { const w = d2(points[i], points[j]); if (w <= cap) o.push([w, j]); }
-    o.sort((a, b) => a[0] - b[0]);
-    for (let m = 0; m < o.length && m < neighbours; m++) {
-      const a = Math.min(i, o[m][1]), b = Math.max(i, o[m][1]), key = a + '_' + b;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push([a, b]);
-    }
-  }
-  return out;
-}

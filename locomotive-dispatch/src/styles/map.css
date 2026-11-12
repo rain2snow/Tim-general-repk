@@ -62,3 +62,8 @@
 .map-note{position:absolute;left:12px;bottom:26px;z-index:600;background:#0c0d0fd9;border:1px solid var(--border);
   border-radius:7px;padding:8px 11px;font-size:10.5px;color:var(--dim);max-width:230px;line-height:1.5;pointer-events:none}
 .map-note b{color:var(--txt)}
+
+/* CN rail network */
+.cn-rail{cursor:help}
+.leaflet-tooltip.rail-tip{background:var(--panel2);color:var(--txt);border:1px solid var(--border2);border-radius:6px;font:500 11.5px/1.35 'IBM Plex Sans',system-ui,sans-serif;padding:5px 8px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.leaflet-tooltip.rail-tip::before{display:none}

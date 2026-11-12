@@ -50,7 +50,10 @@ async function consoleState(page) {
     ...Object.fromEntries(ids.map((id) => [id, document.getElementById(id).textContent])),
     queue: [...document.querySelectorAll('#queue .item')].map((el) => el.innerText),
     markers: document.querySelectorAll('.leaflet-marker-icon').length,
-    paths: document.querySelectorAll('.leaflet-overlay-pane path').length,
+    // the rail layer intentionally changed (schematic corridors -> CN network): exclude it here
+    paths: document.querySelectorAll('.leaflet-overlay-pane path').length -
+      /* global layers */ (window.dispatchApp ? window.dispatchApp.markers.layers : layers).tracks.getLayers().length,
+    rail: document.querySelectorAll('.cn-rail').length,
   }), TEXT_IDS);
 }
 
@@ -238,19 +241,25 @@ try {
     console.error('re-task counter mismatch'); process.exitCode = 1;
   }
   for (const k of ['c-all', 'c-retask']) delete orig.console[k], delete rebuilt.console[k];
+  // Intentional change 3: rail corridors now draw the CN network (one polyline per line).
+  const railLines = JSON.parse(readFileSync(path.join(root, 'data/cn-network.json'), 'utf8')).lines.length;
+  if (rebuilt.console.rail !== railLines || orig.console.rail !== 0) {
+    console.error(`expected ${railLines} CN rail lines in rebuilt map, got ${rebuilt.console.rail}`); process.exitCode = 1;
+  }
   // Intentional fix 2: the original never repainted the console queue after a plan was resolved in
   // the Actions Required view (refreshPlanMarks could not see the nested renderQueue). Rebuilt shows
   // the flags; require exactly the 3 resolved items to be flagged, then compare without flags.
   const flags = rebuilt.plans.queue.filter((t) => /\u2713 DONE/.test(t)).length;
   if (flags !== 3) { console.error('expected 3 DONE flags in rebuilt queue, got ' + flags); process.exitCode = 1; }
   for (const s of [orig, rebuilt]) s.plans.queue = s.plans.queue.map((t) => t.replace(/\u2713 DONE|\u25cf PLAN/g, ''));
+  for (const st of [orig, rebuilt]) { delete st.console.rail; Object.values(st.dow).forEach((d) => delete d.rail); delete st.upload.console.rail; }
   const errs = rebuilt.errors;
   delete orig.errors; delete rebuilt.errors;
   const d = diff(orig, rebuilt);
   const popupCount = Object.keys(rebuilt.popups).length;
   console.log(`compared: ${TEXT_IDS.length} console counters, ${popupCount} map popups, 8 KPI drill-downs, ` +
     `${Object.keys(rebuilt.fleet.drill).length} fleet drill-downs, Actions Required, both CSV exports, 7 demand days, plan entry, STP CSV upload`);
-  console.log(`intentional fixes verified: +${fix1[0]} re-task actions in console queue on load; DONE flags refresh after resolving`);
+  console.log(`intentional changes verified: +${fix1[0]} re-task actions in console queue on load; DONE flags refresh after resolving; ${railLines} CN rail lines`);
   console.log(`markers ${orig.console.markers}/${rebuilt.console.markers}  paths ${orig.console.paths}/${rebuilt.console.paths}  queue items ${rebuilt.console.queue.length}`);
   if (errs.length) { console.error('page errors in rebuilt app:', errs); process.exitCode = 1; }
   if (d.length) {

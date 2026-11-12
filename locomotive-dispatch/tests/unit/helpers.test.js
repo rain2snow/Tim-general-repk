@@ -3,7 +3,7 @@ import { parseCSV, csvCellMinimal, csvCellQuoted } from '../../src/core/csv.js';
 import { parseDate, dayDiff, isoDate, formatSnapshotLabel } from '../../src/core/dates.js';
 import { keyOf, keyName, trainBase } from '../../src/core/keys.js';
 import { planFamily, actionFamily, typeBase } from '../../src/core/families.js';
-import { haversineKm, nearestShop, schematicCorridors } from '../../src/core/geo.js';
+import { haversineKm, nearestShop } from '../../src/core/geo.js';
 import { esc } from '../../src/core/html.js';
 import { searchLocos } from '../../src/core/search.js';
 
@@ -60,10 +60,6 @@ describe('geo', () => {
     expect(haversineKm(null, [0, 0])).toBe(1e9);
     const shops = [{ code: 'A', lat: 50, lng: -100 }, { code: 'B', lat: 45, lng: -80 }];
     expect(nearestShop(shops, 44, -79).code).toBe('B');
-  });
-  it('links nearby stations into schematic corridors without duplicates', () => {
-    const pairs = schematicCorridors([[0, 0], [0, 1], [0, 2], [40, 40]]);
-    expect(pairs).toEqual([[0, 1], [0, 2], [1, 2]]);
   });
 });
 

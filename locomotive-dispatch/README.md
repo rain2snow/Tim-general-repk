@@ -35,10 +35,12 @@ data/                       reference data + baked snapshot (JSON, extracted fro
   base2home-multi.json        colliding train bases -> candidate homes
   lcs-fleet.json              LCS-equipped units
   snapshot.json               analysed snapshot shown on open
+  cn-network.json             CN rail network: 82 main/secondary lines as waypoint chains
 src/
   core/                     pure logic: no DOM, runs in Node and the browser
     analyze.js                STP rows -> stations / dead / deadhead / fleet model
     pools.js, demand.js       shared-job pools; day-of-week demand basis
+    network.js                resolve CN network lines; distance-to-network checks
     planning.js               donors, re-task candidates, loco index
     queue.js                  console action queue
     actionsRequired.js        Actions Required worklists + CSV
@@ -75,6 +77,22 @@ a browser. UI modules talk through `state.js` (`app` + `on/emit('plans')`), not 
 * **Dead** means LD / DM / DIT (low/mid HP only), routed to the assigned shop or the nearest one.
   **Deadhead** means DH units with their destination and ETA.
 
+## CN rail network layer
+
+The **CN rail network** map layer draws `data/cn-network.json`. It has 82 lines, about 25,500
+route-km, covering the CN system including IC, WC, GTW, EJ&E, DM&IR/DWP, BC Rail, Algoma Central
+and B&LE. Main lines are drawn heavier than secondary lines, and hovering a line shows its name
+and length.
+
+Each line is an ordered chain of waypoints. A waypoint is either a plan station key such as
+`HALIFAX|NS`, so the line passes exactly through that terminal, or a named junction or town in
+`places`. The geometry follows the real routes at map scale. It is not the surveyed track
+centreline. To add or reroute a line, edit the JSON. `tests/unit/network.test.js` checks that:
+
+* every waypoint resolves,
+* every terminal with a requirement and every shop lies within 5 km of a line,
+* the network is connected (the B&LE is the one deliberate exception).
+
 ## Verification
 
 * `tests/unit/analyze.snapshot.test.js` rebuilds an STP export from the baked snapshot and checks
@@ -96,5 +114,7 @@ These are deliberate fixes, and the parity test asserts them:
    `opOrder[op] || 9` treated LN's order `0` as missing.
 4. Station popups read the plan-in-place state when opened, so they are never stale. Typing a plan
    in the console queue keeps focus through the auto-refresh.
-5. Leaflet is bundled from npm instead of loaded from a CDN, so the file works offline. Map tiles
+5. The rail corridor layer draws the curated CN network instead of the original's
+   nearest-neighbour schematic links between stations.
+6. Leaflet is bundled from npm instead of loaded from a CDN, so the file works offline. Map tiles
    still need a network connection, and the console works without them.
