@@ -50,11 +50,29 @@ function trainsSection(s) {
       return `<div class="tr"><div class="tr1"><span class="tid">${ids}${shared}</span><span class="treq">${t.req} · ${types}</span></div><div class="turow">${units}</div></div>`;
     }).join('') + (more > 0 ? `<div class="u more">+${more} more trains</div>` : '') + `</div>`;
 }
-function roadSection(s) {
+/**
+ * Units homed here but out on the road. Only Available low/mid-HP units count toward on-hand, so a
+ * unit riding its train dead (LD / DM / DIT), in shop, etc. is dimmed and tagged "not counted".
+ * Status comes from the fleet index (road_units do not carry OpCode / Designation).
+ */
+function roadSection(s, locoIndex) {
   const list = s.road_units || [];
   if (!list.length) return '';
-  return `<div class="cap">Home terminal here · out on the road · ${list.length}</div><div class="units roster">` +
-    list.slice(0, 30).map((u) => `<div class="u"><span><b>${esc(u.loco)}</b> ${esc(u.model)} ${ltTag(u.t)}</span><span style="color:var(--dim)">↗ ${esc(u.loc)}${u.train ? ' · ' + esc(u.train) : ''}</span></div>`).join('') +
+  const status = (u) => (locoIndex && locoIndex[u.loco]) || {};
+  const counts = (u) => { const f = status(u); return !f.op || (f.desig === 'Available' && !f.hhp); };
+  const notCounted = list.filter((u) => !counts(u)).length;
+  const working = notCounted ? ` · <span class="ncc">${list.length - notCounted} working</span>` : '';
+  return `<div class="cap">Home terminal here · out on the road · ${list.length}${working}</div><div class="units roster">` +
+    list.slice(0, 30).map((u) => {
+      if (counts(u)) {
+        return `<div class="u"><span><b>${esc(u.loco)}</b> ${esc(u.model)} ${ltTag(u.t)}</span><span style="color:var(--dim)">↗ ${esc(u.loc)}${u.train ? ' · ' + esc(u.train) : ''}</span></div>`;
+      }
+      const f = status(u);
+      const dead = f.op === 'LD' || f.op === 'DM' || f.desig === 'DIT';
+      const why = [f.op, f.desig && f.desig !== f.op ? f.desig : ''].filter(Boolean).join(' · ') + (dead && f.shop ? ` → ${f.shop}` : '');
+      return `<div class="u nc"><span><b>${esc(u.loco)}</b> ${esc(u.model)} ${ltTag(u.t)}<span class="ncx ${dead ? 'dead' : ''}" title="${dead ? 'Dead in transit' : 'Not Available'} — not counted toward on-hand${f.etr ? ' · ETR ' + esc(f.etr) : ''}">${esc(why)} · not counted</span></span>` +
+        `<span style="color:var(--dim)">↗ ${esc(u.loc)}${u.train ? ' · ' + esc(u.train) : ''}</span></div>`;
+    }).join('') +
     (list.length > 30 ? `<div class="u more">+${list.length - 30} more</div>` : '') + `</div>`;
 }
 function shopSection(lsUnits) {
@@ -98,7 +116,11 @@ function balanceBand(s) {
 }
 
 /** @param planSt '' | 'planned' | 'done' */
-export function stationPopup(s, planSt = '') {
+/**
+ * @param planSt    '' | 'planned' | 'done'
+ * @param locoIndex loco id -> fleet record (OpCode / Designation for the on-the-road list)
+ */
+export function stationPopup(s, planSt = '', locoIndex = null) {
   const lsUnits = (s.roster || []).filter((u) => u.op === 'LS');
   const inb = s.inbound || [];
   const planNote = planSt ? netband(CO.green, planSt === 'done' ? '✓' : '●', (planSt === 'done' ? 'plan resolved' : 'plan in place') + ' — see Actions Required tab') : '';
@@ -122,7 +144,7 @@ export function stationPopup(s, planSt = '') {
     ${shopSection(lsUnits)}
     ${inboundSection(inb)}
     ${rosterSection(s)}
-    ${roadSection(s)}
+    ${roadSection(s, locoIndex)}
   </div>`;
 }
 

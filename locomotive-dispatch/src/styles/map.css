@@ -44,6 +44,10 @@
 .pop .cap{margin-top:9px;font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--dim);
   font-family:'IBM Plex Mono';border-top:1px solid var(--line);padding-top:6px}
 .pop .hhpx{color:var(--cyan);font-size:9px;border:1px solid var(--cyan);border-radius:3px;padding:0 3px;margin-left:4px}
+.pop .u.nc{opacity:.6}
+.pop .ncx{color:var(--amber);font-size:9px;border:1px solid var(--amber);border-radius:3px;padding:0 3px;margin-left:4px;white-space:nowrap}
+.pop .ncx.dead{color:var(--dead);border-color:var(--dead)}
+.pop .ncc{color:var(--green)}
 .pop .slugx{color:var(--steel);font-size:9px;border:1px solid var(--steel);border-radius:3px;padding:0 3px;margin-left:4px}
 .pop .lcsx{color:#7ec8ff;font-size:8.5px;border:1px solid #2a4a5c;border-radius:3px;padding:0 3px;margin-left:4px;letter-spacing:.4px}
 .pop .dur{color:var(--dim);font-size:9px;opacity:.9;margin-left:3px}

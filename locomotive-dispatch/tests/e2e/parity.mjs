@@ -269,13 +269,25 @@ try {
   for (const s of [orig, rebuilt]) s.plans.queue = s.plans.queue.map((t) => t.replace(/\u2713 DONE|\u25cf PLAN/g, ''));
   for (const st of [orig, rebuilt]) { delete st.console.rail; Object.values(st.dow).forEach((d) => delete d.rail); delete st.upload.console.rail; }
   delete orig.hubGroups; delete rebuilt.hubGroups;
+  // Intentional change 5: in "Home terminal here · out on the road", units that are not counted
+  // (e.g. GTW4616 riding L58031 dead, LD/DIT -> MAC) are dimmed and tagged. Require Brantford's tag,
+  // then strip the markers so the rest of every popup is still compared exactly.
+  const brant = rebuilt.popups['station:BRANTFORD|ON'] || '';
+  if (!/GTW4616<\/b>[^]*?class="ncx dead"[^>]*>LD · DIT → MAC · not counted/.test(brant) || !/1 working/.test(brant)) {
+    console.error('expected Brantford popup to flag GTW4616 as LD/DIT not counted'); process.exitCode = 1;
+  }
+  const flagged = Object.values(rebuilt.popups).filter((h) => h.includes('class="u nc"')).length;
+  for (const k of Object.keys(rebuilt.popups)) {
+    rebuilt.popups[k] = rebuilt.popups[k].replace(/ · <span class="ncc">\d+ working<\/span>/g, '')
+      .replace(/<span class="ncx[^"]*"[^>]*>[^<]*<\/span>/g, '').replace(/class="u nc"/g, 'class="u"');
+  }
   const errs = rebuilt.errors;
   delete orig.errors; delete rebuilt.errors;
   const d = diff(orig, rebuilt);
   const popupCount = Object.keys(rebuilt.popups).length;
   console.log(`compared: ${TEXT_IDS.length} console counters, ${popupCount} map popups, 8 KPI drill-downs, ` +
     `${Object.keys(rebuilt.fleet.drill).length} fleet drill-downs, Actions Required, both CSV exports, 7 demand days, plan entry, STP CSV upload`);
-  console.log(`intentional changes verified: +${fix1[0]} re-task actions in console queue on load; DONE flags refresh after resolving; ${railLines} CN rail lines; queue in ${grouped.regions.join('/')} -> ${grouped.groups} hubs`);
+  console.log(`intentional changes verified: +${fix1[0]} re-task actions in console queue on load; DONE flags refresh after resolving; ${railLines} CN rail lines; queue in ${grouped.regions.join('/')} -> ${grouped.groups} hubs; ${flagged} popups flag not-counted road units`);
   console.log(`markers ${orig.console.markers}/${rebuilt.console.markers}  paths ${orig.console.paths}/${rebuilt.console.paths}  queue items ${rebuilt.console.queue.length}`);
   if (errs.length) { console.error('page errors in rebuilt app:', errs); process.exitCode = 1; }
   if (d.length) {
