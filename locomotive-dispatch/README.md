@@ -170,7 +170,12 @@ These are deliberate fixes, and the parity test asserts them:
    in the console queue keeps focus through the auto-refresh.
 5. The rail corridor layer draws CN's network extracted from its weight-limitations system map
    (with weight capacity), instead of the original's nearest-neighbour links between stations.
-6. The console action queue is organised hub-and-spoke (Tactical by hub / Strategic system view)
+6. Station popups are wide (up to 620 px, never wider than the screen). They have a fixed summary
+   (balance band and key stats) and tabs for Trains, Units here (grouped by status, all units
+   listed), In shop, Inspections, On the road, Inbound and Shared. Each tab scrolls in a capped area,
+   and the last tab used is remembered. The parity test checks that every word and number of each
+   original popup is still present.
+7. The console action queue is organised hub-and-spoke (Tactical by hub / Strategic system view)
    instead of one flat list; every original action is still there, with an added hub-level hint.
-7. Leaflet is bundled from npm instead of loaded from a CDN, so the file works offline. Map tiles
+8. Leaflet is bundled from npm instead of loaded from a CDN, so the file works offline. Map tiles
    still need a network connection, and the console works without them.

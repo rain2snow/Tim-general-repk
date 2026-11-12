@@ -63,7 +63,10 @@ async function popups(page, isRebuilt) {
     /* global markerByKey, layers */
     const stations = rebuilt ? window.dispatchApp.markers.markerByKey : markerByKey;
     const lyr = rebuilt ? window.dispatchApp.markers.layers : layers;
-    const content = (m) => { const c = m.getPopup().getContent(); return typeof c === 'function' ? c(m) : c; };
+    const content = (m) => {
+      const c = m.getPopup().getContent(); const v = typeof c === 'function' ? c(m) : c;
+      return typeof v === 'string' ? v : v.outerHTML;   // station popups are elements (tabs)
+    };
     const out = {};
     for (const k of Object.keys(stations).sort()) out['station:' + k] = content(stations[k]);
     for (const name of ['dead', 'deadhead', 'shop']) {
@@ -281,13 +284,29 @@ try {
     rebuilt.popups[k] = rebuilt.popups[k].replace(/ · <span class="ncc">\d+ working<\/span>/g, '')
       .replace(/<span class="ncx[^"]*"[^>]*>[^<]*<\/span>/g, '').replace(/class="u nc"/g, 'class="u"');
   }
+  // Intentional change 6: station popups are a wide tabbed layout (summary + Trains / Units here /
+  // In shop / Inspections / On the road / Inbound / Shared). Prove nothing was lost: every word and
+  // number of the original popup must appear in the rebuilt one (as a multiset). The original's
+  // "+N more" truncation lines are exempt — the rebuilt popup lists every unit.
+  const words = (html) => html.replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .split(/[\s()·,]+/).filter(Boolean);
+  let stationPopups = 0, lost = [];
+  for (const k of Object.keys(orig.popups).filter((x) => x.startsWith('station:'))) {
+    const have = {};
+    words(rebuilt.popups[k] || '').forEach((w) => { have[w] = (have[w] || 0) + 1; });
+    const o = (orig.popups[k] || '').replace(/<div class="u more">[^<]*<\/div>/g, '');
+    words(o).forEach((w) => { if (have[w]) have[w]--; else lost.push(`${k}: "${w}"`); });
+    stationPopups++;
+    delete orig.popups[k]; delete rebuilt.popups[k];
+  }
+  if (lost.length) { console.error(`station popups lost content (${lost.length}):`, lost.slice(0, 15)); process.exitCode = 1; }
   const errs = rebuilt.errors;
   delete orig.errors; delete rebuilt.errors;
   const d = diff(orig, rebuilt);
   const popupCount = Object.keys(rebuilt.popups).length;
   console.log(`compared: ${TEXT_IDS.length} console counters, ${popupCount} map popups, 8 KPI drill-downs, ` +
     `${Object.keys(rebuilt.fleet.drill).length} fleet drill-downs, Actions Required, both CSV exports, 7 demand days, plan entry, STP CSV upload`);
-  console.log(`intentional changes verified: +${fix1[0]} re-task actions in console queue on load; DONE flags refresh after resolving; ${railLines} CN rail lines; queue in ${grouped.regions.join('/')} -> ${grouped.groups} hubs; ${flagged} popups flag not-counted road units`);
+  console.log(`intentional changes verified: +${fix1[0]} re-task actions in console queue on load; DONE flags refresh after resolving; ${railLines} CN rail lines; queue in ${grouped.regions.join('/')} -> ${grouped.groups} hubs; ${flagged} popups flag not-counted road units; ${stationPopups} tabbed station popups keep all original content`);
   console.log(`markers ${orig.console.markers}/${rebuilt.console.markers}  paths ${orig.console.paths}/${rebuilt.console.paths}  queue items ${rebuilt.console.queue.length}`);
   if (errs.length) { console.error('page errors in rebuilt app:', errs); process.exitCode = 1; }
   if (d.length) {

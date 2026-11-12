@@ -62,6 +62,42 @@
 .pop .trains .tu.road{color:var(--amber);background:#ffb02e1a}
 .pop .trains .tu.none{color:var(--dim);background:none;padding-left:0}
 
+/* ---- wide station popup: fixed summary + tabbed detail ---- */
+.station-popup .leaflet-popup-content{margin:14px 16px}
+.pop-station .phead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-right:14px}
+.pop-station .netband{margin-bottom:8px}
+.pop-station .pstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px;margin-bottom:10px}
+.pop-station .pst .ps{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint);line-height:1.25}
+.pop-station .pst{background:var(--panel3);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.pop-station .pst .pv{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;color:var(--txt);line-height:1.2}
+.pop-station .pst .pv small{font-size:9.5px;font-weight:400;color:var(--dim)}
+.pop-station .pst .pl{font-size:9.5px;color:var(--dim);line-height:1.25}
+.pop-station .ptabs{display:flex;gap:2px;border-bottom:1px solid var(--border2);margin-bottom:0;flex-wrap:wrap}
+.pop-station .ptab{font:inherit;font-size:11px;font-weight:600;color:var(--dim);background:none;border:0;border-bottom:2px solid transparent;
+  padding:6px 9px 7px;cursor:pointer;display:flex;align-items:center;gap:5px;margin-bottom:-1px}
+.pop-station .ptab:hover{color:var(--txt)}
+.pop-station .ptab.on{color:var(--txt);border-bottom-color:var(--cn)}
+.pop-station .ptab .pn{font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;background:#ffffff12;border-radius:8px;padding:0 6px}
+.pop-station .ptab.alert .pn{background:var(--short-bg);color:var(--red)}
+.pop-station .ppanes{max-height:min(320px,42vh);overflow-y:auto;padding:2px 2px 2px 0}
+.pop-station .ppane{display:none}
+.pop-station .ppane.on{display:block}
+.pop-station .ppane .cap{margin-top:8px}
+/* panes scroll as one area: no nested scroll boxes */
+.pop-station .units,.pop-station .units.roster,.pop-station .trains{max-height:none;overflow:visible}
+.pop-station .pgrid{display:grid;grid-template-columns:1fr 1fr;column-gap:18px}
+.pop-station .pgrid .u{min-width:0}
+.pop-station .pgrid .u > span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pop-station .trains.pgrid{row-gap:6px}
+.pop-station .trains .tr{background:var(--panel3);border-radius:6px;padding:6px 8px;margin:0}
+.pop-station .trains .tr.tshort{box-shadow:inset 2px 0 0 var(--red)}
+.pop-station .ugh{margin:8px 0 2px;font-size:9.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--faint)}
+.pop-station .ugh span{font-family:'IBM Plex Mono',monospace;color:var(--dim)}
+@media (max-width:640px){
+  .pop-station .pstats{grid-template-columns:repeat(2,1fr)}
+  .pop-station .pgrid{grid-template-columns:1fr}
+}
+
 #map{position:relative;z-index:0}
 .map-note{position:absolute;left:12px;bottom:26px;z-index:600;background:#0c0d0fd9;border:1px solid var(--border);
   border-radius:7px;padding:8px 11px;font-size:10.5px;color:var(--dim);max-width:230px;line-height:1.5;pointer-events:none}
