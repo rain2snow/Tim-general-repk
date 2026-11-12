@@ -7,7 +7,10 @@
 .drow{display:grid;grid-template-columns:1fr 84px 84px 96px 92px;align-items:center;cursor:pointer;transition:background .12s}
 .drow>span{padding:8px 14px;text-align:right;font-variant-numeric:tabular-nums}
 .drow .nm{text-align:left;display:flex;align-items:center;gap:8px;min-width:0}
-.drow .nm .tw{flex:none;width:11px;color:var(--dim);font-size:9px;transition:transform .15s}
+/* expand caret: 22px hit target (location rows only expand via the caret — the row itself flies to the map) */
+.drow .nm .tw{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin:-3px 2px -3px -5px;
+  border-radius:5px;color:var(--dim);font-size:13px;line-height:1;cursor:pointer;transition:transform .15s,background .12s,color .12s}
+.drow .nm .tw:hover{background:var(--panel3);color:var(--txt)}
 .drow .nm .tx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .drow.collapsed .tw{transform:rotate(-90deg)}
 /* tiers */
