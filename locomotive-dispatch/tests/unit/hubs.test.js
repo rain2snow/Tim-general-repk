@@ -3,10 +3,10 @@ import { buildHubModel, assignStationsToHubs, resolveHubs, stationShortSurplus, 
 import { buildQueueActions } from '../../src/core/queue.js';
 import { computeRetask, buildLocoIndex } from '../../src/core/planning.js';
 import { applyDemandDay } from '../../src/core/demand.js';
-import { loadData } from '../fixtures/snapshotRows.js';
+import { loadData, loadFixtureSnapshot } from '../fixtures/snapshotRows.js';
 
 const config = loadData('hubs.json');
-const fresh = () => loadData('snapshot.json');
+const fresh = () => loadFixtureSnapshot();
 const model = (data = fresh()) => buildHubModel(data, config, { retask: computeRetask(data.stations, buildLocoIndex(data.fleet)) });
 
 describe('hub assignment', () => {

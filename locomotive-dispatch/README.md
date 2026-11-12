@@ -21,8 +21,21 @@ To refresh the built-in snapshot from a new STP export (same engine the browser 
 
 ```bash
 npm run analyze -- ~/Downloads/STP_Locomotives.csv   # rewrites data/snapshot.json
+npm test && npm run test:e2e                          # sanity + parity on the new data
 npm run build
 ```
+
+The built-in snapshot is currently the STP export of **2026-11-11**. Unit tests with exact
+expected values are pinned to a frozen copy of the 2026-09-23 snapshot
+(`tests/fixtures/snapshot-2026-09-23.json`), so refreshing the data doesn't change them.
+`tests/unit/current-snapshot.test.js` checks whichever snapshot is baked in:
+
+* the engine reproduces it,
+* it covers every plan location,
+* the hub model reconciles.
+
+The e2e parity test runs the original console on the *current* snapshot (its embedded data swapped
+in), so it compares code rather than data.
 
 Users can still load a newer export at runtime with **⬆ Update snapshot**. Analysis runs in the browser and nothing is uploaded.
 

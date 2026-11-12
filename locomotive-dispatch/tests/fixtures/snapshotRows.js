@@ -7,7 +7,18 @@ import { readFileSync } from 'node:fs';
 
 export const loadData = (f) => JSON.parse(readFileSync(new URL('../../data/' + f, import.meta.url), 'utf8'));
 
-export const SNAPSHOT_DATE = new Date(2026, 8, 23); // data/snapshot.json meta.snapshot
+/**
+ * Frozen 2026-09-23 snapshot: the unit tests' expected values are pinned to it, so refreshing
+ * data/snapshot.json with a newer STP export does not change them.
+ */
+export const loadFixtureSnapshot = () => JSON.parse(readFileSync(new URL('./snapshot-2026-09-23.json', import.meta.url), 'utf8'));
+export const SNAPSHOT_DATE = new Date(2026, 8, 23); // fixture meta.snapshot
+
+/** Snapshot date of a snapshot object, as a local-midnight Date. */
+export function snapshotDate(snap) {
+  const [y, m, d] = String(snap.meta.snapshot).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 

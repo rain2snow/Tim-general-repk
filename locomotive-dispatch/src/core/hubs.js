@@ -8,7 +8,7 @@
  *     (residual surplus -> residual deficit, nearest first).
  */
 import { haversineKm } from './geo.js';
-import { findDonors } from './planning.js';
+import { actionFamily } from './families.js';
 import { isGrouped } from './pools.js';
 import { buildQueueActions } from './queue.js';
 
@@ -126,12 +126,23 @@ export function buildHubModel(data, config, { retask = [] } = {}) {
       const fam = s.req_detail && s.req_detail[0] ? String(s.req_detail[0][0]).replace(/ LCS$/, '') : null;
       let need = stationShortSurplus(s).short;
       const from = [];
-      findDonors(data.stations, s, fam).filter((d) => stationHub[d.k] === hubId).forEach((d) => {
-        const take = Math.min(need, remaining[d.k] || 0);
-        if (take <= 0) return;
-        remaining[d.k] -= take; need -= take;
-        from.push({ k: d.k, station: d.station, units: take, fam: d.fam ? fam : null, km: Math.round(d.d) });
-      });
+      // Donors: in-hub stations with pool-aware spare left (same measure as the hub balance), those
+      // holding the needed family first, then nearest. (A pool's spare sits at its primary.)
+      const famOf = (t) => {
+        if (!fam) return false;
+        const pool = (t.roster || []).filter((u) => u.desig === 'Available' && !u.hhp && !u.slug && !u.road).concat(t.road_units || []);
+        return pool.some((u) => actionFamily(u.model) === fam);
+      };
+      data.stations
+        .filter((t) => t.k !== s.k && stationHub[t.k] === hubId && remaining[t.k] > 0)
+        .map((t) => ({ t, fam: famOf(t), d: s.lat != null && t.lat != null ? haversineKm([s.lat, s.lng], [t.lat, t.lng]) : 1e9 }))
+        .sort((a, b) => (a.fam !== b.fam ? (a.fam ? -1 : 1) : a.d - b.d))
+        .forEach(({ t, fam: hasFam, d }) => {
+          const take = Math.min(need, remaining[t.k]);
+          if (take <= 0) return;
+          remaining[t.k] -= take; need -= take;
+          from.push({ k: t.k, station: t.station, units: take, fam: hasFam ? fam : null, km: d < 1e9 ? Math.round(d) : null });
+        });
       coverPlan[s.k] = { from, uncovered: need };
     });
 

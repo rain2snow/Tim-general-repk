@@ -7,9 +7,9 @@ import { buildWorklists, actionsCsv } from '../../src/core/actionsRequired.js';
 import { computeKpis, buildBalanceTree, dashboardCsv } from '../../src/core/balance.js';
 import { fleetCategory, fleetBreakdown } from '../../src/core/fleet.js';
 import { computeOffplan } from '../../src/core/offplan.js';
-import { loadData } from '../fixtures/snapshotRows.js';
+import { loadData, loadFixtureSnapshot } from '../fixtures/snapshotRows.js';
 
-const fresh = () => loadData('snapshot.json');
+const fresh = () => loadFixtureSnapshot();
 
 describe('balance status & shared pools', () => {
   it('classifies balance', () => {

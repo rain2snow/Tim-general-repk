@@ -16,7 +16,17 @@ import path from 'node:path';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const ORIGINAL = pathToFileURL(path.join(root, 'reference/dispatch.original.html')).href;
+// The original file has the 2026-09-23 data baked in. To compare *code*, not data, run it on the
+// app's current snapshot: same original HTML with data/snapshot.json swapped into its data block.
+const CURRENT = readFileSync(path.join(root, 'data/snapshot.json'), 'utf8');
+const ORIGINAL = (() => {
+  const html = readFileSync(path.join(root, 'reference/dispatch.original.html'), 'utf8');
+  const open = '<script id="data" type="application/json">';
+  const i = html.indexOf(open) + open.length, j = html.indexOf('</script>', i);
+  const file = path.join(mkdtempSync(path.join(tmpdir(), 'orig-')), 'dispatch.original.current.html');
+  writeFileSync(file, html.slice(0, i) + CURRENT + html.slice(j));
+  return pathToFileURL(file).href;
+})();
 const REBUILT = pathToFileURL(path.join(root, 'dist/index.html')).href;
 const leafletJs = readFileSync(path.join(root, 'node_modules/leaflet/dist/leaflet.js'));
 const leafletCss = readFileSync(path.join(root, 'node_modules/leaflet/dist/leaflet.css'));
@@ -273,11 +283,22 @@ try {
   for (const st of [orig, rebuilt]) { delete st.console.rail; Object.values(st.dow).forEach((d) => delete d.rail); delete st.upload.console.rail; }
   delete orig.hubGroups; delete rebuilt.hubGroups;
   // Intentional change 5: in "Home terminal here · out on the road", units that are not counted
-  // (e.g. GTW4616 riding L58031 dead, LD/DIT -> MAC) are dimmed and tagged. Require Brantford's tag,
-  // then strip the markers so the rest of every popup is still compared exactly.
-  const brant = rebuilt.popups['station:BRANTFORD|ON'] || '';
-  if (!/GTW4616<\/b>[^]*?class="ncx dead"[^>]*>LD · DIT → MAC · not counted/.test(brant) || !/1 working/.test(brant)) {
-    console.error('expected Brantford popup to flag GTW4616 as LD/DIT not counted'); process.exitCode = 1;
+  // (e.g. a unit riding its train dead, LD/DIT -> shop) are dimmed and tagged. Require exactly the
+  // non-Available road units of the current snapshot to be tagged, then strip the markers so the
+  // rest of every popup is still compared.
+  const snapData = JSON.parse(CURRENT);
+  const fleetBy = Object.fromEntries(snapData.fleet.map((f) => [f.loco, f]));
+  const expectNc = [];
+  snapData.stations.forEach((s) => (s.road_units || []).forEach((u) => {
+    const f = fleetBy[u.loco]; if (f && !(f.desig === 'Available' && !f.hhp)) expectNc.push([s.k, u.loco]);
+  }));
+  const gotNc = [];
+  Object.entries(rebuilt.popups).forEach(([k, h]) => {
+    for (const m of h.matchAll(/class="u nc"><span><b>([^<]+)<\/b>/g)) gotNc.push([k.replace(/^station:/, ''), m[1]]);
+  });
+  const key = (a) => a.map((x) => x.join(' ')).sort().join('\n');
+  if (key(gotNc) !== key(expectNc)) {
+    console.error('not-counted road units mismatch', { expected: expectNc, got: gotNc }); process.exitCode = 1;
   }
   const flagged = Object.values(rebuilt.popups).filter((h) => h.includes('class="u nc"')).length;
   for (const k of Object.keys(rebuilt.popups)) {

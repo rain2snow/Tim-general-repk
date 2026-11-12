@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { analyze } from '../../src/core/analyze.js';
 import { applyDemandDay } from '../../src/core/demand.js';
-import { loadData, rowsFromSnapshot, SNAPSHOT_DATE } from '../fixtures/snapshotRows.js';
+import { loadData, loadFixtureSnapshot, rowsFromSnapshot, SNAPSHOT_DATE } from '../fixtures/snapshotRows.js';
 
-const snapshot = loadData('snapshot.json');
+const snapshot = loadFixtureSnapshot();
 const plan = loadData('static-plan.json');
 const run = (opts = {}) => analyze(rowsFromSnapshot(snapshot), plan, loadData('base2home.json'), {
   now: SNAPSHOT_DATE, multiHome: loadData('base2home-multi.json'), lcs: loadData('lcs-fleet.json'), ...opts,
