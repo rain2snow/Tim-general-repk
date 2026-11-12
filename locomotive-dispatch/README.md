@@ -37,7 +37,7 @@ expected values are pinned to a frozen copy of the 2026-09-23 snapshot
 The e2e parity test runs the original console on the *current* snapshot (its embedded data swapped
 in), so it compares code rather than data.
 
-Users can still load a newer export at runtime with **⬆ Update snapshot**. Analysis runs in the browser and nothing is uploaded.
+Users can still load a newer export at runtime with **⇅ Data & handoff → Update snapshot**. Analysis runs in the browser and nothing is uploaded.
 
 ## Layout
 
@@ -115,6 +115,41 @@ How it's built:
 
 `tests/e2e/theme.mjs` checks the toggle, its labels, persistence, applying before first paint, and
 the switch back.
+
+## Session handoff (export / import everything)
+
+**⇅ Data & handoff** in the header opens one dialog for both data and handoffs.
+
+**Update snapshot.** Drop a new STP export here, as before. An uploaded snapshot is now saved in
+this browser, so it survives a reload. The dialog shows where the current snapshot came from
+(built in, uploaded or imported) and offers to go back to the built-in one.
+
+**Export session file** writes everything you've changed into one JSON file. It's versioned
+(`kind: "session"`), and you can add your name and a note.
+
+| In the file | Detail |
+|---|---|
+| Captive-plan edits | including train re-homing |
+| Manual locomotive assignments | |
+| Action plans and resolved flags | console queue, Actions Required, hub transfers |
+| Settings | theme and demand day |
+| Snapshot | optional, on by default; stored losslessly |
+
+**Import session file** shows a preview first: who exported it, when, the note, and what it
+contains. It warns if the snapshot is older than yours. Then pick one:
+
+* **Replace** — take that session exactly. Use this for a handoff.
+* **Merge** — keep your assignments and action plans, add theirs (theirs win on conflicts), and
+  use their plan and snapshot if they have them.
+
+After applying, the whole console re-analyses, and everything persists across reloads (the demand
+day included). A file that isn't a session (for example a captive-plan export) is rejected with a
+message saying where it belongs.
+
+The format lives in `src/core/session.js`. It's covered by `tests/unit/session.test.js` (round
+trip, lossless snapshot, replace/merge, validation) and by `tests/e2e/handoff.mjs`. That test
+passes a session between two separate browsers: dispatcher A changes everything and exports;
+dispatcher B imports, gets A's exact state, reloads, then merges.
 
 ## Manual locomotive assignments (at the terminal)
 

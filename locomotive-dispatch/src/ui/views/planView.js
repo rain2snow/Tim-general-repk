@@ -36,6 +36,7 @@ export function initPlanView(c) {
   const chip = byId('planchip');
   if (chip) chip.addEventListener('click', () => showView('plan'));
   on('plan', () => { if (chip) chip.hidden = !app.planEdited; });
+  on('plan', () => { draft = null; });   // active plan replaced (apply / import): rebuild the draft from it
 }
 
 /** Called when the tab opens. */

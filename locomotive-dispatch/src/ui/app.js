@@ -25,6 +25,8 @@ import { loadSavedPlan, savePlan, clearSavedPlan } from './planStore.js';
 import { initPlanView, buildPlanView } from './views/planView.js';
 import { initThemeToggle } from './theme.js';
 import { loadAssignments, saveAssignments, assignOption } from './assignStore.js';
+import { loadSavedSnapshot, saveSnapshot, clearSavedSnapshot } from './snapshotStore.js';
+import { initSession } from './session.js';
 import { markerByKey } from './map/mapView.js';
 
 /** Re-render everything derived from app.data. */
@@ -122,15 +124,57 @@ function loadRows(rows) {
   app.snapshotNow = null;                 // detect from the export
   const data = analyzeWithPlan();
   app.snapshotNow = snapshotDateOf(data);
+  app.snapshotSource = 'upload';
+  app.snapshotSaved = saveSnapshot(data, 'upload');   // survives a reload
   setData(data);
+  emit('snapshot');
+}
+
+/** Use a snapshot given as { meta, fleet } (from a session file) as the current data. */
+export function useSnapshot(snap, source = 'import') {
+  app.rows = rowsFromFleet(snap.fleet);
+  app.snapshotNow = snapshotDateOf(snap);
+  app.snapshotSource = source;
+  app.snapshotSaved = saveSnapshot(snap, source);
+}
+
+/** Drop an uploaded / imported snapshot and go back to the one built into the app. */
+export function revertToBuiltinSnapshot() {
+  clearSavedSnapshot();
+  app.rows = rowsFromFleet(app.builtinSnapshot.fleet);
+  app.snapshotNow = snapshotDateOf(app.builtinSnapshot);
+  app.snapshotSource = 'built-in';
+  setData(analyzeWithPlan());
+  emit('snapshot');
+}
+
+/** Everything the dispatcher has changed, for a session handoff file. */
+export function currentSession() {
+  return {
+    settings: { theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark', demandDay: app.dow },
+    plan: app.planEdited ? app.plan : null,
+    assignments: app.assignments,
+    actionPlans: app.store.entries(),
+    snapshot: app.data,
+  };
 }
 
 export function startApp({ snapshot, reference, network, hubs }) {
   app.hubs = hubs || null;
   app.reference = reference;
   app.plan = reference.plan;
+  app.builtinSnapshot = snapshot;
   app.rows = rowsFromFleet(snapshot.fleet);   // the snapshot can be re-analysed losslessly
   app.snapshotNow = snapshotDateOf(snapshot);
+  app.snapshotSource = 'built-in';
+  // an uploaded / imported snapshot saved in this browser wins unless the built-in one is newer
+  const savedSnap = loadSavedSnapshot();
+  if (savedSnap && String(savedSnap.meta.snapshot) >= String(snapshot.meta.snapshot)) {
+    app.rows = rowsFromFleet(savedSnap.fleet);
+    app.snapshotNow = snapshotDateOf(savedSnap);
+    app.snapshotSource = savedSnap.source || 'upload';
+    app.snapshotSaved = true;
+  } else if (savedSnap) clearSavedSnapshot();
   app.assignments = loadAssignments();
   const saved = loadSavedPlan();
   initMap('map');
@@ -160,13 +204,14 @@ export function startApp({ snapshot, reference, network, hubs }) {
     on('assign', () => { const n = Object.keys(app.assignments).length; chip.hidden = !n; chip.textContent = `${n} manual`; });
   }
   const loader = initLoader(loadRows);
+  initSession();
   try {
     if (saved) {                         // this browser has an edited plan: use it
       app.plan = { ...saved.plan, shops: reference.plan.shops };
       app.planEdited = true;
     }
     // edited plan or manual assignments need a re-analysis; otherwise the baked snapshot is exact
-    app.data = saved || Object.keys(app.assignments).length ? analyzeWithPlan() : snapshot;
+    app.data = saved || Object.keys(app.assignments).length || app.snapshotSource !== 'built-in' ? analyzeWithPlan() : snapshot;
     render();
     emit('plan');
     emit('assign');

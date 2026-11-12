@@ -9,8 +9,24 @@ export function createActionStore(storage = typeof localStorage !== 'undefined' 
   return {
     get(k) { const v = read(k); return v != null ? v : k in mem ? mem[k] : null; },
     set(k, v) { mem[k] = v; write(k, v); },
+    remove(k) { delete mem[k]; try { storage && storage.removeItem(k); } catch { /* ignore */ } },
+    /** Every stored action plan / resolved flag ({ key: value }, empty values skipped). */
+    entries(match = ACTION_KEY_RE) {
+      const out = {};
+      try {
+        if (storage) for (let i = 0; i < storage.length; i++) {
+          const k = storage.key(i);
+          if (match.test(k)) { const v = storage.getItem(k); if (v) out[k] = v; }
+        }
+      } catch { /* storage blocked: memory only */ }
+      for (const k of Object.keys(mem)) if (match.test(k) && mem[k] && !(k in out)) out[k] = mem[k];
+      return out;
+    },
   };
 }
+
+/** Keys used for dispatcher action plans (incl. hub transfers 'xfer:') and their ':done' flags. */
+export const ACTION_KEY_RE = /^(dead|short|insp|retask|xfer):/;
 
 /** Action id builders — the persisted keys; keep stable so saved plans survive upgrades. */
 export const actionId = {

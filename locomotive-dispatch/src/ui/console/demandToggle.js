@@ -17,6 +17,14 @@ export function initDemandToggle(rerender) {
   $$('button', days).forEach((b) => b.addEventListener('click', () => setDemandDay(+b.dataset.d, rerender)));
 }
 
+/** Reflect a demand day set from elsewhere (e.g. an imported session) in the toggle + day buttons. */
+export function syncDemandControl(day) {
+  const tog = byId('dowToggle'), days = byId('dowDays');
+  if (tog) tog.classList.toggle('on', day != null);
+  if (days) days.style.display = day != null ? 'flex' : 'none';
+  setDemandDay(day, null);
+}
+
 export function setDemandDay(day, rerender) {
   app.dow = day;
   applyDemandDay(app.data && app.data.stations, day);
