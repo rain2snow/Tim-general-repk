@@ -69,7 +69,9 @@ function renderStations(stations) {
     const m = L.marker([s.lat, s.lng], { icon: divIcon(`<div class="${dia ? 'mk-dia' : 'mk-dot'}" style="${style}"></div>`, r * 2) })
       // popup content is a function so the plan-state band is always current
       .bindPopup(() => stationPopupElement(s, stationPlanState(app.store, s, app.retask), app.locoIndex,
-        { map: app.assignments || {}, nameOf: (k) => (app.stationsByKey[k] ? app.stationsByKey[k].station : String(k).split('|')[0]) }), stationPopupOptions());
+        { map: app.assignments || {}, deadheads: app.deadheads || {},
+          nameOf: (k) => (app.stationsByKey[k] ? app.stationsByKey[k].station : String(k).split('|')[0]),
+          isStation: (k) => !!app.stationsByKey[k] }), stationPopupOptions());
     m.addTo(layers[layerForStatus(s.status)]);
     markerByKey[s.k] = m;
 
@@ -139,7 +141,7 @@ function renderMovers(list, { layer, lines, index, color, size, dash, opacity, p
     m.addTo(layer);
     index[d.loco] = m;
     if (d.tlat != null) {
-      L.polyline([[d.lat, d.lng], [d.tlat, d.tlng]], { color, weight: 1.6, opacity, dashArray: dash, className: 'route-line ' + (color === CO.dead ? 'route-dead' : 'route-dh') }).addTo(lines);
+      L.polyline([[d.lat, d.lng], [d.tlat, d.tlng]], { color, weight: 1.6, opacity, dashArray: dash, className: 'route-line ' + (color === CO.dead ? 'route-dead' : 'route-dh') + (d.manual ? ' route-manual' : '') }).addTo(lines);
       const end = color === CO.dead ? CO.cyan : color;
       L.circleMarker([d.tlat, d.tlng], { radius: 2.5, color: end, fillColor: end, fillOpacity: 0.9, weight: 0 }).addTo(lines);
     }

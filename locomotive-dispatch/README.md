@@ -131,6 +131,7 @@ this browser, so it survives a reload. The dialog shows where the current snapsh
 |---|---|
 | Captive-plan edits | including train re-homing |
 | Manual locomotive assignments | |
+| Planned deadheads and consists | merge keeps each unit in one consist (theirs win) |
 | Action plans and resolved flags | console queue, Actions Required, hub transfers |
 | Settings | theme and demand day |
 | Snapshot | optional, on by default; stored losslessly |
@@ -139,7 +140,7 @@ this browser, so it survives a reload. The dialog shows where the current snapsh
 contains. It warns if the snapshot is older than yours. Then pick one:
 
 * **Replace** — take that session exactly. Use this for a handoff.
-* **Merge** — keep your assignments and action plans, add theirs (theirs win on conflicts), and
+* **Merge** — keep your assignments, deadheads, consists and action plans, add theirs (theirs win on conflicts), and
   use their plan and snapshot if they have them.
 
 After applying, the whole console re-analyses, and everything persists across reloads, except the
@@ -172,6 +173,45 @@ Clear all.
 In the engine these are passed as `analyze(…, { assign: { locoId: stationKey | '' } })`; the
 fleet record carries `manual`. They're covered by `tests/unit/assign.test.js` and the browser
 flow in `tests/e2e/assign.mjs`.
+
+## Manual deadheads and consists
+
+Two more tabs on every terminal popup, next to **Assign**.
+
+**Consists.** Build a locomotive consist by pairing units. Type loco IDs lead first (the field
+autocompletes and warns about status and location). Reorder with ★ (make lead) and ◀, remove
+with ✕. Give it an optional name and note, and optionally tie it to one of the terminal's jobs.
+
+* Consist units count toward that terminal. They are on the road if they sit elsewhere, and
+  only Available units under 4000 hp count, as everywhere else.
+* A consist tied to a job puts its units on that job in the Trains tab, lead first. They fill
+  the job's required types before any other unit.
+* Each card shows the units, an approximate total HP (by model) and warnings: units at different
+  locations, units not Available, a slug without a powered unit, a slug leading, or a unit
+  missing from the snapshot.
+* A unit belongs to one consist at a time; adding it to another moves it.
+* **Edit**, **Deadhead…** and **Dissolve** are on each card.
+
+**Deadhead.** Plan a move of one unit, or a whole consist at this terminal, to another terminal,
+with an optional ETA and note. A planned deadhead:
+
+* counts the unit at its destination (on the road until it arrives) and takes it off its origin;
+* appears in the destination's Inbound tab and on the map as a dashed line, tagged manual;
+* replaces any deadhead in the STP export for that unit.
+
+Deadheading a consist moves the consist with it: it is now listed at the destination and is no
+longer tied to a job. The tab also lists moves leaving and arriving here, each with **Cancel**.
+
+Precedence for where a unit counts: planned deadhead, then manual assignment, then consist, then
+its train-based home. Every change re-analyses the console and is saved in this browser. The
+header chip counts all manual changes. The Fleet tab adds **Planned deadheads** and **Consists**
+panels (Cancel / Dissolve, Export CSV, Cancel all / Dissolve all). Both are part of the session
+handoff file.
+
+In the engine: `analyze(…, { deadheads: { locoId: { to, eta, note } }, consists: [{ id, name, k,
+job, units, note }] })`. Fleet records carry `dhTo` / `consist`, manual deadhead records carry
+`manual`, and stations with consists get a `consists` summary. Without any, the output is
+byte-identical to before. Covered by `tests/unit/ops.test.js` and `tests/e2e/ops.mjs`.
 
 ## Captive Plan tab (editable)
 

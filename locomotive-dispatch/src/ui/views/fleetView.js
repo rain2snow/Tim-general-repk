@@ -4,7 +4,7 @@ import { fleetBreakdown, FLEET_CATEGORIES, FLEET_OVERLAYS } from '../../core/fle
 import { $$, byId, downloadText } from '../dom.js';
 import { csvCellMinimal } from '../../core/csv.js';
 import { app } from '../state.js';
-import { setAssignment, clearAssignments } from '../app.js';
+import { setAssignment, clearAssignments, cancelDeadhead, dissolveConsist, commitOpsNow as clearOpsKind } from '../app.js';
 import { showView } from './navigation.js';
 
 let drill = {}, shopName = {};
@@ -32,8 +32,70 @@ export function buildFleetView() {
     FLEET_OVERLAYS.map((m) => row(m, b.counts[m.k])).join('') +
     '</div><div class="fl-detail" id="fl-detail"></div>';
   $$('.fl-row', box).forEach((r) => r.addEventListener('click', () => toggleDrill(r.dataset.fcat, r)));
-  box.insertAdjacentHTML('afterbegin', assignmentsHtml());
+  box.insertAdjacentHTML('afterbegin', assignmentsHtml() + deadheadsHtml() + consistsHtml());
   wireAssignments(box);
+  wireOps(box);
+}
+
+/* ------------------------------------------------------------------ deadheads + consists */
+const csvOf = (head, rows, cols) => [head.join(',')].concat(rows.map((r) => cols.map((c) => csvCellMinimal(r[c])).join(','))).join('\n');
+
+function deadheadRows() {
+  return Object.entries(app.deadheads || {}).sort((a, b) => (b[1].at || '').localeCompare(a[1].at || '')).map(([loco, d]) => {
+    const f = app.locoIndex[loco] || {};
+    return { loco, model: f.model || '', status: f.op ? `${f.op} · ${f.desig}` : 'not in snapshot', from: f.loc || '', to: stationName(d.to),
+      eta: d.eta || '', note: d.note || '', when: (d.at || '').slice(0, 16).replace('T', ' ') };
+  });
+}
+function consistRows() {
+  return (app.consists || []).map((c) => {
+    const st = app.stationsByKey[c.k];
+    const sum = st && (st.consists || []).find((x) => x.id === c.id);
+    return { id: c.id, name: c.name || c.id, at: stationName(c.k), job: c.job || '', units: c.units.join(' + '),
+      hp: sum ? '≈' + sum.hp.toLocaleString() : '', warnings: sum ? sum.warnings.join('; ') : '', note: c.note || '' };
+  });
+}
+
+function deadheadsHtml() {
+  const rows = deadheadRows();
+  if (!rows.length) return '';
+  return '<div class="asg-panel" data-ops="dh"><div class="fl-head"><h3>Planned deadheads</h3><span class="fl-sub">units moved in this console · they count at their destination</span>' +
+    '<span class="asg-actions"><button class="actexport" data-ops-act="export">Export CSV</button><button class="actexport" data-ops-act="clear">Cancel all</button></span></div>' +
+    '<table class="asg-tbl"><thead><tr><th>Loco</th><th>Model</th><th>Status</th><th>From</th><th>To</th><th>ETA</th><th>Note</th><th>Set</th><th></th></tr></thead><tbody>' +
+    rows.map((r) => `<tr><td><b>${esc(r.loco)}</b></td><td>${esc(r.model)}</td><td>${esc(r.status)}</td><td>${esc(r.from)}</td><td>${esc(r.to)}</td>` +
+      `<td>${esc(r.eta)}</td><td class="dim">${esc(r.note)}</td><td class="dim">${esc(r.when)}</td><td><button class="asg-btn" data-dh-undo="${esc(r.loco)}">Cancel</button></td></tr>`).join('') +
+    '</tbody></table></div>';
+}
+
+function consistsHtml() {
+  const rows = consistRows();
+  if (!rows.length) return '';
+  return '<div class="asg-panel" data-ops="cs"><div class="fl-head"><h3>Consists</h3><span class="fl-sub">built in this console · lead unit first · HP approximate</span>' +
+    '<span class="asg-actions"><button class="actexport" data-ops-act="export">Export CSV</button><button class="actexport" data-ops-act="clear">Dissolve all</button></span></div>' +
+    '<table class="asg-tbl"><thead><tr><th>Consist</th><th>Terminal</th><th>Job</th><th>Units (lead first)</th><th>HP</th><th>Warnings</th><th></th></tr></thead><tbody>' +
+    rows.map((r) => `<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.at)}</td><td class="dim">${esc(r.job || '—')}</td><td>${esc(r.units)}</td><td>${esc(r.hp)}</td>` +
+      `<td class="${r.warnings ? 'neg' : 'dim'}">${esc(r.warnings || '—')}</td><td><button class="asg-btn" data-cs-undo="${esc(r.id)}">Dissolve</button></td></tr>`).join('') +
+    '</tbody></table></div>';
+}
+
+function wireOps(box) {
+  box.querySelectorAll('[data-ops]').forEach((panel) => panel.addEventListener('click', (e) => {
+    const dh = e.target.closest('[data-dh-undo]'), cs = e.target.closest('[data-cs-undo]'), act = e.target.closest('[data-ops-act]');
+    if (dh) { cancelDeadhead(dh.dataset.dhUndo); showView('fleet'); return; }
+    if (cs) { dissolveConsist(cs.dataset.csUndo); showView('fleet'); return; }
+    if (!act) return;
+    const isDh = panel.dataset.ops === 'dh', snap = (app.data.meta && app.data.meta.snapshot) || 'export';
+    if (act.dataset.opsAct === 'export') {
+      downloadText(isDh
+        ? csvOf(['Loco', 'Model', 'Status', 'From', 'To', 'ETA', 'Note', 'Set'], deadheadRows(), ['loco', 'model', 'status', 'from', 'to', 'eta', 'note', 'when'])
+        : csvOf(['Consist', 'Terminal', 'Job', 'Units (lead first)', 'HP (approx)', 'Warnings', 'Note'], consistRows(), ['name', 'at', 'job', 'units', 'hp', 'warnings', 'note']),
+      `${isDh ? 'planned_deadheads' : 'consists'}_${snap}.csv`);
+    } else if (act.dataset.opsAct === 'clear' && confirm(isDh ? 'Cancel all planned deadheads?' : 'Dissolve all consists?')) {
+      if (isDh) Object.keys(app.deadheads).forEach((l) => delete app.deadheads[l]);
+      else app.consists.splice(0);
+      clearOpsKind(); showView('fleet');
+    }
+  }));
 }
 
 /* ------------------------------------------------------------------ manual assignments */

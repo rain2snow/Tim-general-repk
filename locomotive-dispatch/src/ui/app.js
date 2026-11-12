@@ -25,6 +25,7 @@ import { loadSavedPlan, savePlan, clearSavedPlan } from './planStore.js';
 import { initPlanView, buildPlanView } from './views/planView.js';
 import { initThemeToggle } from './theme.js';
 import { loadAssignments, saveAssignments, assignOption } from './assignStore.js';
+import { loadDeadheads, saveDeadheads, loadConsists, saveConsists, nextConsistId } from './opsStore.js';
 import { loadSavedSnapshot, saveSnapshot, clearSavedSnapshot } from './snapshotStore.js';
 import { initSession } from './session.js';
 import { markerByKey } from './map/mapView.js';
@@ -41,6 +42,7 @@ export function render() {
   renderMap(data);
   renderCounts(data);
   renderLocoList();
+  renderStationList();
   rebuildQueue();
   app.dashStale = true;
   emit('data');
@@ -75,7 +77,8 @@ const snapshotDateOf = (d) => {
 export function analyzeWithPlan(plan = app.plan) {
   const r = app.reference;
   return analyze(app.rows, { ...plan, shops: r.plan.shops }, r.base2home,
-    { multiHome: r.multiHome, lcs: r.lcs, now: app.snapshotNow || undefined, assign: assignOption(app.assignments) });
+    { multiHome: r.multiHome, lcs: r.lcs, now: app.snapshotNow || undefined,
+      assign: assignOption(app.assignments), deadheads: app.deadheads, consists: app.consists });
 }
 
 /* ---------- manual locomotive assignments (dispatcher overrides at a terminal) ---------- */
@@ -95,6 +98,56 @@ export function setAssignment(loco, k, note = '', reopen = null) {
   if (reopen) setTimeout(() => { const m = markerByKey[reopen]; if (m) m.openPopup(); }, 30);
 }
 
+/* ---------- manual deadheads + consists ---------- */
+const reopenPopup = (k) => { if (k) setTimeout(() => { const m = markerByKey[k]; if (m) m.openPopup(); }, 30); };
+export const commitOpsNow = () => commitOps(null);
+function commitOps(reopen) {
+  saveDeadheads(app.deadheads); saveConsists(app.consists);
+  setData(analyzeWithPlan());
+  emit('assign');
+  reopenPopup(reopen);
+}
+
+/** Plan deadheads: each loco moves to station `to` (counts there). */
+export function setDeadheads(locos, to, { eta = '', note = '' } = {}, reopen = null) {
+  const at = new Date().toISOString();
+  app.deadheads = { ...app.deadheads };
+  locos.forEach((l) => { app.deadheads[l] = { to, eta, note, at }; });
+  commitOps(reopen);
+}
+export function cancelDeadhead(loco, reopen = null) {
+  app.deadheads = { ...app.deadheads };
+  delete app.deadheads[loco];
+  commitOps(reopen);
+}
+
+/** Create or update a consist (a unit belongs to at most one consist: it is moved out of others). */
+export function saveConsist(c, reopen = null) {
+  const id = c.id || nextConsistId(app.consists);
+  const units = [...new Set(c.units)];
+  const others = app.consists.filter((x) => x.id !== id)
+    .map((x) => ({ ...x, units: x.units.filter((l) => !units.includes(l)) })).filter((x) => x.units.length);
+  app.consists = [...others, { id, name: c.name || id, k: c.k, job: c.job || '', units, note: c.note || '', at: new Date().toISOString() }];
+  commitOps(reopen);
+}
+export function dissolveConsist(id, reopen = null) {
+  app.consists = app.consists.filter((x) => x.id !== id);
+  commitOps(reopen);
+}
+/** Deadhead a whole consist: every unit moves, and the consist goes with them (job cleared). */
+export function deadheadConsist(id, to, opts = {}, reopen = null) {
+  const c = app.consists.find((x) => x.id === id);
+  if (!c) return;
+  app.consists = app.consists.map((x) => (x.id === id ? { ...x, k: to, job: '' } : x));
+  setDeadheads(c.units, to, opts, reopen);
+}
+export function clearOps() {
+  app.deadheads = {}; app.consists = [];
+  commitOps(null);
+}
+/** Count of manual changes shown on the header chip. */
+export const manualCount = () => Object.keys(app.assignments).length + Object.keys(app.deadheads).length + app.consists.length;
+
 export function clearAssignments() {
   app.assignments = {};
   saveAssignments({});
@@ -103,6 +156,12 @@ export function clearAssignments() {
 }
 
 /** Loco-ID suggestions for the Assign tab. */
+function renderStationList() {
+  let dl = document.getElementById('dh-stations');
+  if (!dl) { dl = document.createElement('datalist'); dl.id = 'dh-stations'; document.body.appendChild(dl); }
+  dl.innerHTML = app.data.stations.map((s) => `<option value="${s.station} ${s.state}">${s.region || ''} · ${s.zone || ''}</option>`).join('');
+}
+
 function renderLocoList() {
   let dl = document.getElementById('asg-locos');
   if (!dl) { dl = document.createElement('datalist'); dl.id = 'asg-locos'; document.body.appendChild(dl); }
@@ -154,6 +213,8 @@ export function currentSession() {
     settings: { theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark', demandDay: app.dow },
     plan: app.planEdited ? app.plan : null,
     assignments: app.assignments,
+    deadheads: app.deadheads,
+    consists: app.consists,
     actionPlans: app.store.entries(),
     snapshot: app.data,
   };
@@ -176,6 +237,8 @@ export function startApp({ snapshot, reference, network, hubs }) {
     app.snapshotSaved = true;
   } else if (savedSnap) clearSavedSnapshot();
   app.assignments = loadAssignments();
+  app.deadheads = loadDeadheads();
+  app.consists = loadConsists();
   const saved = loadSavedPlan();
   initMap('map');
   initThemeToggle();
@@ -194,6 +257,16 @@ export function startApp({ snapshot, reference, network, hubs }) {
   initDashboardExport();
   initSearch();
   on('plans', refreshPlanMarks);
+  document.addEventListener('dispatch:deadhead', (e) => {
+    const { action, locos, loco, consist, to, eta, note, station } = e.detail;
+    if (action === 'cancel') cancelDeadhead(loco, station);
+    else if (consist) deadheadConsist(consist, to, { eta, note }, station);
+    else setDeadheads(locos, to, { eta, note }, station);
+  });
+  document.addEventListener('dispatch:consist', (e) => {
+    const { action, consist, id, station } = e.detail;
+    if (action === 'dissolve') dissolveConsist(id, station); else saveConsist(consist, station);
+  });
   document.addEventListener('dispatch:assign', (e) => {
     const { loco, k, note, station } = e.detail;
     setAssignment(loco, k, note, station);
@@ -201,7 +274,7 @@ export function startApp({ snapshot, reference, network, hubs }) {
   const chip = document.getElementById('asgchip');
   if (chip) {
     chip.addEventListener('click', () => showView('fleet'));
-    on('assign', () => { const n = Object.keys(app.assignments).length; chip.hidden = !n; chip.textContent = `${n} manual`; });
+    on('assign', () => { const n = manualCount(); chip.hidden = !n; chip.textContent = `${n} manual`; });
   }
   const loader = initLoader(loadRows);
   initSession();
@@ -211,7 +284,7 @@ export function startApp({ snapshot, reference, network, hubs }) {
       app.planEdited = true;
     }
     // edited plan or manual assignments need a re-analysis; otherwise the baked snapshot is exact
-    app.data = saved || Object.keys(app.assignments).length || app.snapshotSource !== 'built-in' ? analyzeWithPlan() : snapshot;
+    app.data = saved || manualCount() || app.snapshotSource !== 'built-in' ? analyzeWithPlan() : snapshot;
     render();
     emit('plan');
     emit('assign');

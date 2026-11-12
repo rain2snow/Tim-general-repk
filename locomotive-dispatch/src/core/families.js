@@ -29,3 +29,19 @@ export function actionFamily(model) {
 
 /** Strip the LCS suffix so "SD60 LCS" matches "SD60". */
 export const typeBase = (t) => (t || '').replace(/ LCS$/, '');
+
+/**
+ * Approximate rated horsepower by model (for consist summaries — indicative, not a spec).
+ * Slugs (YBU / HBU) have no prime mover: 0 hp.
+ */
+const HP_BY_MODEL = [
+  [/^(YBU|HBU|CALF)/, 0], [/^SW1200/, 1200], [/^GP9/, 1750], [/^GP15/, 1500], [/^GP20/, 2000], [/^GP38/, 2000],
+  [/^GP39/, 2300], [/^GP40/, 3000], [/^F40/, 3000], [/^SD38/, 2000], [/^SD40/, 3000], [/^SD45/, 3600], [/^SD50/, 3500],
+  [/^SD60/, 3800], [/^SD70/, 4300], [/^SD75/, 4300], [/^C40/, 4000], [/^C44/, 4400], [/^AC44/, 4400],
+  [/^ES44/, 4400], [/^ET44/, 4400], [/^Q19/, 1900],
+];
+export function approxHp(model) {
+  const m = String(model || '').toUpperCase();
+  const hit = HP_BY_MODEL.find(([re]) => re.test(m));
+  return hit ? hit[1] : null;
+}

@@ -10,6 +10,7 @@ import { byId, downloadText } from './dom.js';
 import { app, emit } from './state.js';
 import { savePlan, clearSavedPlan } from './planStore.js';
 import { saveAssignments } from './assignStore.js';
+import { saveDeadheads, saveConsists } from './opsStore.js';
 import { setTheme } from './theme.js';
 import { syncDemandControl } from './console/demandToggle.js';
 import { currentSession, useSnapshot, revertToBuiltinSnapshot, setData, analyzeWithPlan } from './app.js';
@@ -52,6 +53,8 @@ function summaryList(sum) {
   const parts = [
     sum.planLocations ? `captive plan edited at ${plural(sum.planLocations, 'location')}` + (sum.trainRehomes ? ` (${plural(sum.trainRehomes, 'train re-homing')})` : '') : 'built-in captive plan',
     plural(sum.assignments, 'manual assignment'),
+    ...(sum.deadheads ? [plural(sum.deadheads, 'planned deadhead')] : []),
+    ...(sum.consists ? [plural(sum.consists, 'consist')] : []),
     `${plural(sum.actionPlans, 'action plan')}${sum.resolved ? ` (${sum.resolved} resolved)` : ''}`,
     `${sum.theme} mode`,
     sum.demandDay == null ? 'peak demand' : `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][sum.demandDay]} demand`,
@@ -107,6 +110,9 @@ export function applyImport(bundle, mode = 'replace') {
   // manual assignments
   app.assignments = { ...next.assignments };
   saveAssignments(app.assignments);
+  // planned deadheads + consists
+  app.deadheads = { ...(next.deadheads || {}) }; saveDeadheads(app.deadheads);
+  app.consists = (next.consists || []).map((c) => ({ ...c })); saveConsists(app.consists);
   // captive plan
   if (next.plan) { app.plan = { ...next.plan, shops: app.reference.plan.shops }; app.planEdited = true; savePlan(app.plan); }
   else if (mode === 'replace') { app.plan = app.reference.plan; app.planEdited = false; clearSavedPlan(); }

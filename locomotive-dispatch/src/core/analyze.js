@@ -13,11 +13,14 @@
  *      lcs        Set/obj of LCS-equipped loco ids (data/lcs-fleet.json)
  *      assign     manual assignments { locoId: stationKey | "" } — overrides the train-based home;
  *                 "" releases the unit: no home, and not counted toward any terminal
+ *      deadheads  dispatcher-planned moves { locoId: { to, eta, note } } — unit counts at `to`
+ *      consists   [{ id, name, k, job, units: [locoId…] (lead first), note }] — units count at `k`
+ *                 precedence for a unit's home: deadhead > assign > consist > train-based
  */
 import { SPARE_OPS, SLUG_MODELS, INSPECTION_WINDOW_DAYS } from './constants.js';
 import { parseDate, dayDiff, isoDate, detectSnapshot } from './dates.js';
 import { keyOf, trainBase } from './keys.js';
-import { planFamily, typeBase } from './families.js';
+import { planFamily, typeBase, approxHp } from './families.js';
 import { balanceStatus, buildSharedPools } from './pools.js';
 import { effectiveBase2Home } from './planEdit.js';
 
@@ -56,6 +59,30 @@ export function rowsFromFleet(fleet) {
   });
 }
 
+/** Stable key of a plan job/train (its train IDs), used to tie a consist to a job. */
+export const jobKey = (t) => (t.ids || []).join(' / ');
+
+/** A consist as shown at its terminal: units in order with location, status, counted?, approx HP + warnings. */
+export function consistSummary(c, recByLoco, elig) {
+  const units = (c.units || []).map((l, i) => {
+    const u = recByLoco[l];
+    if (!u) return { loco: l, missing: true, lead: i === 0 };
+    return { loco: l, model: u.model, t: u.t, op: u.op, desig: u.desig, slug: u.slug, hhp: u.hhp, at: u.pkey,
+      here: u.pkey === c.k, counted: elig(u) && u.home === c.k, hp: approxHp(u.model), lead: i === 0 };
+  });
+  const warn = [];
+  const missing = units.filter((u) => u.missing).map((u) => u.loco);
+  if (missing.length) warn.push(`Not in this snapshot: ${missing.join(', ')}`);
+  const places = [...new Set(units.filter((u) => !u.missing).map((u) => u.at))];
+  if (places.length > 1) warn.push(`Units are at ${places.length} different locations (${places.map((k) => k.split('|')[0]).join(', ')})`);
+  const notAvail = units.filter((u) => !u.missing && u.desig !== 'Available').map((u) => `${u.loco} (${u.op})`);
+  if (notAvail.length) warn.push(`Not Available: ${notAvail.join(', ')}`);
+  if (units.some((u) => u.slug) && !units.some((u) => !u.missing && !u.slug)) warn.push('A slug needs a powered mother unit in the consist');
+  if (units[0] && units[0].slug) warn.push('A slug cannot lead');
+  return { id: c.id, name: c.name || c.id, job: c.job || '', note: c.note || '', units,
+    hp: units.reduce((a, u) => a + (u.hp || 0), 0), warnings: warn };
+}
+
 /** Resolve a train's home terminal, disambiguating colliding train bases. */
 export function resolveHome(row, { stationSet, base2home, multiHome }) {
   const train = row['Train ID'] || '';
@@ -83,6 +110,15 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
   const lcs = toLookup(options.lcs);
   // manual assignments: loco -> station key (assign there) or '' (released: count where it sits)
   const assign = options.assign || {};
+  // manual deadheads: loco -> { to, eta, note } (moving to `to`, counted there; beats assignments)
+  const deadheads = options.deadheads || {};
+  // consists: [{ id, name, k, job, units: [loco, ...] (lead first), note }] — units count at `k`
+  // (weakest override), and a consist tied to a job fills that job's units in the Trains view
+  const consists = options.consists || [];
+  const consistOf = {};
+  consists.forEach((c) => (c.units || []).forEach((l) => { if (!consistOf[l]) consistOf[l] = c; }));
+  const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const recByLoco = {};
   const DAY = options.day ?? null;
   const NOW = options.now || detectSnapshot(stpRows) ||
     (plan.meta && plan.meta.snapshot ? parseDate(plan.meta.snapshot) : null) || new Date();
@@ -99,21 +135,29 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
     const op = r['OpCode'], desig = r['Designation'], train = r['Train ID'] || '',
       model = r['Loco Model'], t = r['Loco Type'], loco = r['Loco ID'], curLoc = r['Current Location'] || '';
     const pkey = keyOf(curLoc), hhp = t === 'HHP', slug = SLUG_MODELS.has(model);
-    const ov = Object.prototype.hasOwnProperty.call(assign, loco) ? assign[loco] : undefined;
+    // home: manual deadhead > manual assignment > consist > train-based home
+    const dh = has(deadheads, loco) && stationSet[deadheads[loco].to] ? deadheads[loco] : null;
+    const asg = has(assign, loco) ? assign[loco] : undefined;
+    const cs = consistOf[loco] && stationSet[consistOf[loco].k] ? consistOf[loco] : null;
+    const ov = dh ? dh.to : asg !== undefined ? asg : cs ? cs.k : undefined;
     const h = ov !== undefined ? (ov && stationSet[ov] ? ov : null) : resolveHome(r, { stationSet, base2home, multiHome });
     const isroad = !!h && h !== pkey;
     const rec = {
-      loco, model, t, op, desig, hhp, slug, lcs: !!lcs[loco], pkey, home: h, road: isroad, assigned: !!h, released: ov === '',
+      loco, model, t, op, desig, hhp, slug, lcs: !!lcs[loco], pkey, home: h, road: isroad, assigned: !!h,
+      released: !dh && asg === '',
       fdate: parseDate(r['Insp Date']), insp: r['Insp'] || '', train, curLoc,
       since: parseDate(r['Since in OpCode']), etrDate: parseDate(r['ETR']), etrRaw: (r['ETR'] || '').trim(),
     };
+    recByLoco[loco] = rec;
     if (!hhp) push(roster, pkey, rec); // console roster: low/mid HP only
     fleet.push({
       loco, loc: (curLoc || '').trim(), k: pkey, model, t, op, desig, hhp, home: h, road: isroad, lcs: !!lcs[loco],
       train, fam: planFamily(model), dest: (r['Destination'] || '').trim(), shop: (r['Shop'] || '').trim(),
       sinceD: rec.since ? dayDiff(NOW, rec.since) : null, etr: (r['ETR'] || '').trim(),
       stp: compactStp(r),
-      ...(ov !== undefined ? { manual: ov || '' } : {}),
+      ...(!dh && asg !== undefined ? { manual: asg || '' } : {}),
+      ...(dh ? { dhTo: dh.to } : {}),
+      ...(consistOf[loco] ? { consist: consistOf[loco].id } : {}),
     });
     if (isroad && !hhp) push(roadunits, h, rec);
     if ((op === 'LD' || op === 'DM' || desig === 'DIT') && !hhp) {
@@ -124,7 +168,15 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
         tlat: sc ? sc.lat : null, tlng: sc ? sc.lng : null, tname: sc ? sc.name : '',
       });
     }
-    if (op === 'DH' && !hhp) { // deadhead: healthy unit moving to a destination
+    if (dh) {                  // dispatcher-planned deadhead (replaces any deadhead in the export)
+      if (dh.to !== pkey) {
+        deadhead.push({
+          loco, lockey: pkey, rawloc: curLoc.trim(), op, model, t, destkey: dh.to, dest: dh.to.replace('|', ' '),
+          eta: String(dh.eta || '').trim(), etr: (r['ETR'] || '').trim(), train: String(dh.train || ''),
+          notes: String(dh.note || ''), manual: true, lat: null, lng: null, tlat: null, tlng: null,
+        });
+      }
+    } else if (op === 'DH' && !hhp) { // deadhead: healthy unit moving to a destination
       const ddst = r['Destination'] || '', dk = keyOf(ddst);
       if (ddst.trim() && dk !== pkey) {
         deadhead.push({
@@ -164,18 +216,33 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
     const overdue_n = insp.filter((u) => dayDiff(u.fdate, NOW) < 0).length;
     const status = balanceStatus(req, have, !!(p.shared_in && p.shared_in.length));
 
-    // display-only: distribute eligible units across trains by type family
+    // display-only: distribute eligible units across trains by type family. A consist tied to a
+    // job puts its (counted) units on that job first, in consist order (lead first).
     const pool = counted.slice(), used = {};
+    const countedSet = new Set(counted.map((u) => u.loco));
+    const here_consists = consists.filter((c) => c.k === p.k);
+    const unitOf = (u, extra = {}) => ({ loco: u.loco, model: u.model, t: u.t, loc: (u.curLoc || '').trim() ? u.curLoc : u.pkey, here: !u.road, ...extra });
     const trains = (p.trains || []).map((t) => {
       const units = [];
+      const job = jobKey(t);
+      const fromConsist = {};   // family -> consist units already on this job
+      here_consists.filter((c) => c.job && c.job === job).forEach((c) => (c.units || []).forEach((l) => {
+        if (countedSet.has(l) && !used[l]) {
+          units.push(unitOf(recByLoco[l], { consist: c.id })); used[l] = 1;
+          const f = typeBase(planFamily(recByLoco[l].model) || '');
+          fromConsist[f] = (fromConsist[f] || 0) + 1;
+        }
+      }));
       (t.types || []).forEach((ty) => {
         let want = ty[1];
         const fam = typeBase(ty[0]);
+        const covered = Math.min(want, fromConsist[fam] || 0);   // the consist already fills these
+        want -= covered; fromConsist[fam] = (fromConsist[fam] || 0) - covered;
         for (let i = 0; i < pool.length && want > 0; i++) {
           const u = pool[i];
           if (used[u.loco]) continue;
           if (typeBase(planFamily(u.model) || '') === fam) {
-            units.push({ loco: u.loco, model: u.model, t: u.t, loc: (u.curLoc || '').trim() ? u.curLoc : u.pkey, here: !u.road });
+            units.push(unitOf(u));
             used[u.loco] = 1; want--;
           }
         }
@@ -200,6 +267,7 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
       insp: insp.map((u) => ({ loco: u.loco, days: dayDiff(u.fdate, NOW), model: u.model, insp: u.insp, op: u.op })),
       insp_n: insp.length, overdue_n,
       shared_in: p.shared_in, status, lat: p.lat, lng: p.lng,
+      ...(here_consists.length ? { consists: here_consists.map((c) => consistSummary(c, recByLoco, elig)) } : {}),
     };
   });
 

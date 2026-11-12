@@ -108,6 +108,90 @@ function assignPane(s, locoIndex, asg) {
 }
 
 /**
+ * Consists tab: consists built at this terminal (lead first, approx HP, warnings) and a builder.
+ * Actions bubble as 'dispatch:consist' ({ action: 'save', consist } | { action: 'dissolve', id }).
+ */
+function consistsPane(s, ctx) {
+  const list = s.consists || [];
+  const jobs = (s.trains || []).map((t) => t.ids.join(' / '));
+  const statusTag = (u) => u.missing ? '<span class="asg-tag">not in snapshot</span>'
+    : !u.counted ? `<span class="asg-tag" title="${esc(u.op)} · ${esc(u.desig)} at ${esc(String(u.at).split('|')[0])}">${u.here ? esc(u.op) : '↗ ' + esc(String(u.at).split('|')[0])} · not counted</span>`
+      : u.here ? '' : `<span class="asg-tag road">↗ ${esc(String(u.at).split('|')[0])}</span>`;
+  const cards = list.map((c) => `
+    <div class="cs-card" data-consist='${esc(JSON.stringify({ id: c.id, name: c.name, job: c.job, note: c.note, units: c.units.map((u) => u.loco) })).replace(/'/g, '&#39;')}'>
+      <div class="cs-h"><b>${esc(c.name)}</b>${c.job ? `<span class="dim">on ${esc(c.job)}</span>` : '<span class="dim">no job</span>'}
+        <span class="cs-hp">≈ ${c.hp.toLocaleString()} hp</span></div>
+      <div class="cs-units">${c.units.map((u) => `<span class="cs-u${u.counted ? '' : ' nc'}">${u.lead ? '<span class="cs-lead" title="lead unit">★</span>' : ''}<b>${esc(u.loco)}</b> ${esc(u.model || '')}${statusTag(u)}</span>`).join('')}</div>
+      ${c.warnings.length ? `<div class="cs-warn">${c.warnings.map((w) => `⚠ ${esc(w)}`).join('<br>')}</div>` : ''}
+      ${c.note ? `<div class="asg-note">“${esc(c.note)}”</div>` : ''}
+      <div class="cs-btns"><button type="button" class="asg-btn" data-cs="edit">Edit</button>
+        <button type="button" class="asg-btn" data-cs="dh">Deadhead…</button>
+        <button type="button" class="asg-btn ghost" data-cs="dissolve">Dissolve</button></div>
+    </div>`).join('') || '<div class="u more">No consists at this terminal yet.</div>';
+  return {
+    key: 'consists', label: 'Consists', count: list.length || '+',
+    cap: `Consists at ${esc(s.station)} · ${list.length}`,
+    body: `<div class="cs-list">${cards}</div>
+      <form class="cs-form" autocomplete="off">
+        <div class="cs-fh">New consist</div>
+        <input type="hidden" name="id" value="">
+        <div class="cs-row">
+          <input name="name" placeholder="Name (e.g. ${esc(s.station.slice(0, 4))}-${list.length + 1})" maxlength="40">
+          <select name="job"><option value="">— no job —</option>${jobs.map((j) => `<option value="${esc(j)}">${esc(j)}</option>`).join('')}</select>
+        </div>
+        <div class="cs-chips"></div>
+        <div class="cs-row">
+          <input class="cs-add" list="asg-locos" placeholder="Add unit (lead first)…" spellcheck="false">
+          <button type="button" class="asg-btn" data-cs="add">Add</button>
+          <input name="note" placeholder="Note (optional)" maxlength="80">
+        </div>
+        <div class="asg-msg cs-msg" aria-live="polite"></div>
+        <div class="cs-btns"><button type="submit" class="asg-btn primary">Save consist</button>
+          <button type="button" class="asg-btn ghost" data-cs="reset">Clear</button></div>
+      </form>
+      <div class="asg-help">Units in a consist count toward ${esc(s.station)} (if Available, &lt;4000 hp). Tie it to a job to put its units on that job in the Trains tab. A unit belongs to one consist at a time. HP is approximate (by model).</div>`,
+  };
+}
+
+/**
+ * Deadhead tab: plan a move of a unit (or a whole consist) to another terminal, and list manual
+ * deadheads leaving / arriving here. Actions bubble as 'dispatch:deadhead'.
+ */
+function deadheadPane(s, locoIndex, ctx) {
+  const dhs = (ctx && ctx.deadheads) || {};
+  const nameOf = (ctx && ctx.nameOf) || ((k) => String(k).split('|')[0]);
+  const out = Object.entries(dhs).filter(([l, d]) => locoIndex && locoIndex[l] && locoIndex[l].k === s.k && d.to !== s.k);
+  const inn = Object.entries(dhs).filter(([, d]) => d.to === s.k);
+  const row = ([l, d], dir) => {
+    const f = (locoIndex && locoIndex[l]) || {};
+    return `<div class="u asg-row"><span><b>${esc(l)}</b> ${esc(f.model || '')} <span class="asg-tag man">${dir === 'out' ? '→ ' + esc(nameOf(d.to)) : 'from ' + esc(String(f.k || '?').split('|')[0])}</span>` +
+      `${d.eta ? ` <span class="dim">ETA ${esc(d.eta)}</span>` : ''}${d.note ? ` <span class="asg-note">“${esc(d.note)}”</span>` : ''}</span>` +
+      `<span><button type="button" class="asg-btn" data-dh-cancel="${esc(l)}">Cancel</button></span></div>`;
+  };
+  const consistOpts = (s.consists || []).map((c) => `<option value="${esc(c.id)}">${esc(c.name)} (${c.units.length} units)</option>`).join('');
+  return {
+    key: 'deadhead', label: 'Deadhead', count: out.length + inn.length || '+',
+    cap: `Deadheads at ${esc(s.station)} · ${out.length} out · ${inn.length} in`,
+    body: `<form class="dh-form" autocomplete="off">
+        <div class="cs-row">
+          <input class="dh-loco" name="loco" list="asg-locos" placeholder="Unit, e.g. CN4138" spellcheck="false">
+          ${consistOpts ? `<select name="consist"><option value="">…or a consist here</option>${consistOpts}</select>` : ''}
+        </div>
+        <div class="cs-row">
+          <input class="dh-to" name="to" list="dh-stations" placeholder="To terminal, e.g. HALIFAX NS" spellcheck="false">
+          <input name="eta" placeholder="ETA (e.g. 11/13 14:00)" maxlength="30">
+        </div>
+        <div class="cs-row"><input name="note" placeholder="Note / train (optional)" maxlength="80"></div>
+        <div class="asg-msg dh-msg" aria-live="polite"></div>
+        <button type="submit" class="asg-btn primary">Plan deadhead</button>
+      </form>
+      <div class="asg-help">A planned deadhead counts the unit at its destination (on the road until it arrives) and shows the move on the map. It replaces any deadhead in the STP export for that unit.</div>
+      ${out.length ? `<div class="ugh">Leaving ${esc(s.station)} <span>${out.length}</span></div><div class="units roster pgrid">${out.map((e) => row(e, 'out')).join('')}</div>` : ''}
+      ${inn.length ? `<div class="ugh">Coming to ${esc(s.station)} <span>${inn.length}</span></div><div class="units roster pgrid">${inn.map((e) => row(e, 'in')).join('')}</div>` : ''}`,
+  };
+}
+
+/**
  * Units homed here but out on the road. Only Available low/mid-HP units count toward on-hand, so a
  * unit riding its train dead (LD / DM / DIT), in shop, etc. is dimmed and tagged "not counted".
  * Status comes from the fleet index (road_units do not carry OpCode / Designation).
@@ -157,7 +241,7 @@ function inspPane(s) {
 
 function inboundPane(inb) {
   if (!inb.length) return null;
-  const body = inb.map((u) => `<div class="u"><span><b>${esc(u.loco)}</b> ${esc(u.model)} ${ltTag(u.t)}</span><span style="color:${CO.inbound}">from ${esc(u.rawloc)} · ETA ${esc(u.eta) || '—'}</span></div>`).join('');
+  const body = inb.map((u) => `<div class="u"><span><b>${esc(u.loco)}</b> ${esc(u.model)} ${ltTag(u.t)}${u.manual ? '<span class="asg-tag man" title="Planned in this console">manual</span>' : ''}</span><span style="color:${CO.inbound}">from ${esc(u.rawloc)} · ETA ${esc(u.eta) || '—'}${u.manual && u.notes ? ' · ' + esc(u.notes) : ''}</span></div>`).join('');
   return { key: 'inbound', label: 'Inbound', count: inb.length, cap: `Inbound deadhead · ${inb.length}`, body: `<div class="units pgrid">${body}</div>` };
 }
 
@@ -213,7 +297,7 @@ export function stationPopup(s, planSt = '', locoIndex = null, asg = null) {
     inb.length ? stat('Inbound (deadhead)', inb.length, CO.inbound, `· ETA ${esc(inb[0].eta) || '—'}`) : '',
   ].join('');
   const panes = [trainsPane(s), unitsPane(s), shopPane(lsUnits), inspPane(s), roadPane(s, locoIndex), inboundPane(inb), sharedPane(s),
-    asg ? assignPane(s, locoIndex, asg) : null].filter(Boolean);
+    asg ? assignPane(s, locoIndex, asg) : null, asg ? consistsPane(s, asg) : null, asg ? deadheadPane(s, locoIndex, asg) : null].filter(Boolean);
   const active = (panes.find((p) => p.key === lastTab) || panes[0] || {}).key;
   const tabs = panes.length ? `<div class="ptabs" role="tablist">` + panes.map((p) =>
     `<button type="button" role="tab" class="ptab${p.key === active ? ' on' : ''}${p.alert ? ' alert' : ''}" data-tab="${p.key}">${p.label}<span class="pn">${p.count}</span></button>`).join('') + `</div>` : '';
@@ -268,7 +352,116 @@ export function stationPopupElement(s, planSt, locoIndex, asg = null) {
       emit(id, s.k, form.querySelector('.asg-notein').value.trim());
     });
   }
+  wireConsists(el, s, locoIndex, asg);
+  wireDeadheads(el, s, locoIndex, asg);
   return el;
+}
+
+const fire = (el, type, detail) => el.dispatchEvent(new CustomEvent(type, { bubbles: true, detail }));
+
+/** "HALIFAX NS", "halifax, ns" or "HALIFAX|NS" -> station key, if it is a known station. */
+function stationKeyFrom(text, ctx) {
+  const t = String(text || '').trim().toUpperCase().replace(/,/g, ' ').replace(/\s+/g, ' ');
+  if (!t) return null;
+  const k = t.includes('|') ? t : t.replace(/ (\w\w)$/, '|$1');
+  return ctx && ctx.isStation && ctx.isStation(k) ? k : null;
+}
+
+function wireConsists(el, s, locoIndex, ctx) {
+  const form = el.querySelector('.cs-form');
+  if (!form) return;
+  let units = [];
+  const chips = form.querySelector('.cs-chips'), msg = form.querySelector('.cs-msg'), add = form.querySelector('.cs-add');
+  const say = (t, cls = '') => { msg.textContent = t; msg.className = 'asg-msg cs-msg ' + cls; };
+  const draw = () => {
+    chips.innerHTML = units.length ? units.map((l, i) => {
+      const f = (locoIndex && locoIndex[l]) || {};
+      return `<span class="cs-chip">${i === 0 ? '<span class="cs-lead">★</span>' : `<button type="button" class="cs-mini" data-cs-lead="${i}" title="Make lead">★</button><button type="button" class="cs-mini" data-cs-up="${i}" title="Move earlier">◀</button>`}` +
+        `<b>${esc(l)}</b> <span class="dim">${esc(f.model || '?')}</span><button type="button" class="cs-mini" data-cs-del="${i}" title="Remove">✕</button></span>`;
+    }).join('') : '<span class="dim">No units yet — add them lead first.</span>';
+  };
+  const load = (c) => {
+    form.querySelector('.cs-fh').textContent = c ? `Edit ${c.name}` : 'New consist';
+    form.elements.id.value = c ? c.id : '';
+    form.elements.name.value = c ? c.name : '';
+    form.elements.job.value = c ? c.job || '' : '';
+    form.elements.note.value = c ? c.note || '' : '';
+    units = c ? c.units.slice() : [];
+    draw(); say('');
+  };
+  const addUnit = () => {
+    const id = add.value.trim().toUpperCase();
+    if (!id) return;
+    const f = locoIndex && locoIndex[id];
+    if (!f) { say(`${id} is not in this snapshot.`, 'err'); return; }
+    if (units.includes(id)) { say(`${id} is already in this consist.`, 'warn'); return; }
+    units.push(id); add.value = ''; draw();
+    const notes = [];
+    if (f.consist && f.consist !== form.elements.id.value) notes.push(`it will be moved out of consist ${f.consist}`);
+    if (f.desig !== 'Available') notes.push(`${f.op} · ${f.desig} — will not count`);
+    if (f.k !== s.k) notes.push(`it is at ${f.loc || f.k} — deadhead it here to bring it in`);
+    say(notes.length ? `${id}: ${notes.join('; ')}.` : `${id} ${f.model} added.`, notes.length ? 'warn' : 'ok');
+  };
+  draw();
+  add.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addUnit(); } });
+  add.addEventListener('input', () => { add.value = add.value.toUpperCase().replace(/\s+/g, ''); });
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cs],[data-cs-del],[data-cs-up],[data-cs-lead]');
+    if (!b) return;
+    // these buttons re-render the chips, detaching the clicked node; Leaflet would then not see the
+    // click as coming from inside the popup and close it as a map click
+    e.stopPropagation();
+    if (b.dataset.csDel != null) { units.splice(+b.dataset.csDel, 1); draw(); return; }
+    if (b.dataset.csUp != null) { const i = +b.dataset.csUp; [units[i - 1], units[i]] = [units[i], units[i - 1]]; draw(); return; }
+    if (b.dataset.csLead != null) { const i = +b.dataset.csLead; units.unshift(units.splice(i, 1)[0]); draw(); return; }
+    const card = b.closest('.cs-card');
+    const c = card ? JSON.parse(card.dataset.consist) : null;
+    if (b.dataset.cs === 'add') addUnit();
+    else if (b.dataset.cs === 'reset') load(null);
+    else if (b.dataset.cs === 'edit') { load(c); form.scrollIntoView({ block: 'nearest' }); }
+    else if (b.dataset.cs === 'dissolve') fire(el, 'dispatch:consist', { action: 'dissolve', id: c.id, station: s.k });
+    else if (b.dataset.cs === 'dh') {
+      const tab = el.querySelector('.ptab[data-tab="deadhead"]'); if (tab) tab.click();
+      const sel = el.querySelector('.dh-form select[name="consist"]'); if (sel) sel.value = c.id;
+      const to = el.querySelector('.dh-form .dh-to'); if (to) to.focus();
+    }
+  });
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!units.length) { say('Add at least one unit.', 'err'); return; }
+    fire(el, 'dispatch:consist', { action: 'save', station: s.k, consist: {
+      id: form.elements.id.value || null, name: form.elements.name.value.trim(), k: s.k,
+      job: form.elements.job.value, units, note: form.elements.note.value.trim() } });
+  });
+}
+
+function wireDeadheads(el, s, locoIndex, ctx) {
+  const form = el.querySelector('.dh-form');
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dh-cancel]');
+    if (b) fire(el, 'dispatch:deadhead', { action: 'cancel', loco: b.dataset.dhCancel, station: s.k });
+  });
+  if (!form) return;
+  const msg = form.querySelector('.dh-msg');
+  const say = (t, cls = '') => { msg.textContent = t; msg.className = 'asg-msg dh-msg ' + cls; };
+  form.elements.loco.addEventListener('input', (e) => {
+    const v = e.target.value = e.target.value.toUpperCase().replace(/\s+/g, '');
+    const f = locoIndex && locoIndex[v];
+    if (!v) say('');
+    else if (!f) say(`${v} is not in this snapshot.`, 'err');
+    else say(`${f.loco} ${f.model} · ${f.op} ${f.desig} · at ${f.loc || '?'}` + (f.desig === 'Available' ? '' : ' — will move but not count'), f.desig === 'Available' ? 'ok' : 'warn');
+  });
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const consist = form.elements.consist ? form.elements.consist.value : '';
+    const loco = form.elements.loco.value.trim().toUpperCase();
+    const to = stationKeyFrom(form.elements.to.value, ctx);
+    if (!consist && !(locoIndex && locoIndex[loco])) { say(loco ? `${loco} is not in this snapshot.` : 'Enter a unit or choose a consist.', 'err'); return; }
+    if (!to) { say('Choose a destination terminal from the list (e.g. HALIFAX NS).', 'err'); return; }
+    if (!consist && locoIndex[loco].k === to) { say(`${loco} is already at ${form.elements.to.value}.`, 'warn'); return; }
+    fire(el, 'dispatch:deadhead', { action: 'add', station: s.k, to, eta: form.elements.eta.value.trim(), note: form.elements.note.value.trim(),
+      ...(consist ? { consist } : { locos: [loco] }) });
+  });
 }
 
 /** Popup sizing: wide on desktop, never wider than the viewport. */
