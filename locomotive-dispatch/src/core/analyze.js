@@ -17,6 +17,7 @@ import { parseDate, dayDiff, isoDate, detectSnapshot } from './dates.js';
 import { keyOf, trainBase } from './keys.js';
 import { planFamily, typeBase } from './families.js';
 import { balanceStatus, buildSharedPools } from './pools.js';
+import { effectiveBase2Home } from './planEdit.js';
 
 const toLookup = (x) => {
   if (!x) return {};
@@ -24,6 +25,34 @@ const toLookup = (x) => {
   if (Array.isArray(x)) { const o = {}; x.forEach((k) => { o[k] = true; }); return o; }
   return x;
 };
+
+/**
+ * Raw STP columns the engine reads (beyond the identity columns kept on every fleet record).
+ * Each fleet record carries them compactly in `stp`, so an analysed snapshot can be re-analysed
+ * later — e.g. against an edited captive plan — with no loss (see rowsFromFleet).
+ */
+const STP_RAW = {
+  l: 'Current Location', tr: 'Train ID', d: 'Destination', sh: 'Shop', etr: 'ETR', id: 'Insp Date', i: 'Insp',
+  n: 'Notes', p: 'Priority', te: 'Train ETA', le: 'Loco ETA', s: 'Since in OpCode',
+};
+function compactStp(r) {
+  const o = {};
+  for (const [k, col] of Object.entries(STP_RAW)) if (r[col]) o[k] = r[col];
+  return o;
+}
+
+/**
+ * Rebuild STP rows from an analysed snapshot's fleet records.
+ * Exact for snapshots built with `stp` on each record; older snapshots fall back to the cleaned
+ * fields (inspections, notes and ETAs are then unavailable).
+ */
+export function rowsFromFleet(fleet) {
+  return (fleet || []).map((f) => {
+    const row = { 'Loco ID': f.loco, OpCode: f.op, Designation: f.desig, 'Loco Model': f.model, 'Loco Type': f.t };
+    if (f.stp) { for (const [k, col] of Object.entries(STP_RAW)) row[col] = f.stp[k] || ''; return row; }
+    return { ...row, 'Current Location': f.loc, 'Train ID': f.train, Destination: f.dest, Shop: f.shop, ETR: f.etr };
+  });
+}
 
 /** Resolve a train's home terminal, disambiguating colliding train bases. */
 export function resolveHome(row, { stationSet, base2home, multiHome }) {
@@ -45,7 +74,9 @@ export function resolveHome(row, { stationSet, base2home, multiHome }) {
   return b1 && stationSet[b1] ? b1 : null;
 }
 
-export function analyze(stpRows, plan, base2home, options = {}) {
+export function analyze(stpRows, plan, base2homeIn, options = {}) {
+  // an edited plan carries its train re-homing (plan.meta.base2home_overrides)
+  const base2home = effectiveBase2Home(base2homeIn, plan);
   const multiHome = options.multiHome || {};
   const lcs = toLookup(options.lcs);
   const DAY = options.day ?? null;
@@ -76,6 +107,7 @@ export function analyze(stpRows, plan, base2home, options = {}) {
       loco, loc: (curLoc || '').trim(), k: pkey, model, t, op, desig, hhp, home: h, road: isroad, lcs: !!lcs[loco],
       train, fam: planFamily(model), dest: (r['Destination'] || '').trim(), shop: (r['Shop'] || '').trim(),
       sinceD: rec.since ? dayDiff(NOW, rec.since) : null, etr: (r['ETR'] || '').trim(),
+      stp: compactStp(r),
     });
     if (isroad && !hhp) push(roadunits, h, rec);
     if ((op === 'LD' || op === 'DM' || desig === 'DIT') && !hhp) {

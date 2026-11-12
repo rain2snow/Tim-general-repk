@@ -33,13 +33,14 @@
         <div class="sub">Maintenance Dispatch &middot; Fleet &amp; Shop Routing</div>
       </div>
     </div>
-    <div class="snap"><span class="live"></span>Snapshot <b id="snapdate">—</b></div><button id="reloadbtn" class="reloadbtn" type="button" title="Replace with a newer STP export">⬆ Update snapshot</button>
+    <div class="snap"><span class="live"></span>Snapshot <b id="snapdate">—</b><button id="planchip" class="planchip" type="button" hidden title="This browser is using an edited captive plan — open the Captive Plan tab">Edited plan</button></div><button id="reloadbtn" class="reloadbtn" type="button" title="Replace with a newer STP export">⬆ Update snapshot</button>
     <div class="locosearch"><input id="locoq" type="text" placeholder="Find loco ID…" autocomplete="off" spellcheck="false"><div id="locores" class="locores"></div></div>
     <div class="vtab" id="vtab">
       <button data-view="console" class="on">Console</button>
       <button data-view="dash">Dashboard</button>
       <button data-view="fleet">Fleet</button>
       <button data-view="actions">Actions Required</button>
+      <button data-view="plan">Captive Plan</button>
     </div>
     <div class="mtab">
       <button data-tab="left">Board</button>
@@ -153,6 +154,7 @@
     <div id="offplan"></div>
   </section>
   <section id="actreq"></section>
+  <section id="planview"></section>
   <section id="fleetview">
     <div class="dash-h">
       <h2>Fleet status breakdown</h2>

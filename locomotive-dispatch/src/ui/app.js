@@ -20,6 +20,9 @@ import { buildFleetView } from './views/fleetView.js';
 import { buildActionsRequired } from './views/actionsRequired.js';
 import { initSearch } from './search.js';
 import { initLoader } from './loader.js';
+import { analyze, rowsFromFleet } from '../core/analyze.js';
+import { loadSavedPlan, savePlan, clearSavedPlan } from './planStore.js';
+import { initPlanView, buildPlanView } from './views/planView.js';
 
 /** Re-render everything derived from app.data. */
 export function render() {
@@ -56,8 +59,44 @@ function refreshPlanMarks() {
   $$('#kpi-detail .kd-card[data-key]').forEach((c) => c.classList.toggle('planned', planned(c.dataset.key)));
 }
 
+/* ---------- captive plan: analysis against the active (possibly edited) plan ---------- */
+const snapshotDateOf = (d) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec((d.meta && d.meta.snapshot) || '');
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+};
+
+/** Analyse the current STP rows against `plan` (defaults to the active plan). */
+export function analyzeWithPlan(plan = app.plan) {
+  const r = app.reference;
+  return analyze(app.rows, { ...plan, shops: r.plan.shops }, r.base2home,
+    { multiHome: r.multiHome, lcs: r.lcs, now: app.snapshotNow || undefined });
+}
+
+/** Make `plan` the active captive plan: persist it (or clear when built-in) and re-analyse. */
+export function applyPlan(plan, { builtIn = false } = {}) {
+  app.plan = plan;
+  app.planEdited = !builtIn;
+  if (builtIn) clearSavedPlan(); else savePlan(plan);
+  setData(analyzeWithPlan(plan));
+  emit('plan');
+}
+
+/** New STP export loaded: keep its rows (for later plan edits) and analyse against the active plan. */
+function loadRows(rows) {
+  app.rows = rows;
+  app.snapshotNow = null;                 // detect from the export
+  const data = analyzeWithPlan();
+  app.snapshotNow = snapshotDateOf(data);
+  setData(data);
+}
+
 export function startApp({ snapshot, reference, network, hubs }) {
   app.hubs = hubs || null;
+  app.reference = reference;
+  app.plan = reference.plan;
+  app.rows = rowsFromFleet(snapshot.fleet);   // the snapshot can be re-analysed losslessly
+  app.snapshotNow = snapshotDateOf(snapshot);
+  const saved = loadSavedPlan();
   initMap('map');
   if (network) renderRailLegend(renderNetwork(network), network);
   initLayerToggles();
@@ -69,13 +108,22 @@ export function startApp({ snapshot, reference, network, hubs }) {
   registerView('dash', openDashboard);
   registerView('actions', buildActionsRequired);
   registerView('fleet', buildFleetView);
+  registerView('plan', buildPlanView);
+  initPlanView({ applyPlan, analyzeWithPlan });
   initDashboardExport();
   initSearch();
   on('plans', refreshPlanMarks);
-  const loader = initLoader(reference, setData);
+  const loader = initLoader(loadRows);
   try {
-    app.data = snapshot;
+    if (saved) {                         // this browser has an edited plan: use it
+      app.plan = { ...saved.plan, shops: reference.plan.shops };
+      app.planEdited = true;
+      app.data = analyzeWithPlan();
+    } else {
+      app.data = snapshot;
+    }
     render();
+    emit('plan');
   } catch (e) {
     console.error(e);
     loader.fail('Built-in snapshot failed to load — please load an STP file.');

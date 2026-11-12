@@ -4,7 +4,7 @@ import { app } from '../state.js';
 import { markerByKey, deadByLoco, flyToMarker, invalidateMapSize, layerForStatus } from '../map/mapView.js';
 import { ensureLayerShown } from '../console/layerToggles.js';
 
-const MODES = { dash: 'dashmode', actions: 'actmode', fleet: 'fleetmode' };
+const MODES = { dash: 'dashmode', actions: 'actmode', fleet: 'fleetmode', plan: 'planmode' };
 const builders = {};
 
 /** Register the builder each non-console view runs when it is opened. */

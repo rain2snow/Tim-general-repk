@@ -1,13 +1,13 @@
 /** "Update snapshot" overlay: drop/browse an STP_Locomotives.csv and re-analyse in the browser. */
 import { parseCSV } from '../core/csv.js';
-import { analyze, isStpExport } from '../core/analyze.js';
+import { isStpExport } from '../core/analyze.js';
 import { byId } from './dom.js';
 
 /**
- * @param reference { plan, base2home, multiHome, lcs } built-in reference data
- * @param onData    called with the freshly analysed snapshot
+ * @param onRows called with the parsed STP rows; the app analyses them against the active
+ *               (possibly edited) captive plan. Throwing reports the error in the overlay.
  */
-export function initLoader(reference, onData) {
+export function initLoader(onRows) {
   const overlay = byId('loader'), fileIn = byId('stpfile'), statusEl = byId('loadstatus'), dz = byId('drop');
 
   function handle(file) {
@@ -18,9 +18,10 @@ export function initLoader(reference, onData) {
       try {
         const rows = parseCSV(rd.result);
         if (!isStpExport(rows)) { statusEl.textContent = 'That doesn’t look like an STP export (no ‘Loco ID’ column).'; return; }
-        const data = analyze(rows, reference.plan, reference.base2home, { multiHome: reference.multiHome, lcs: reference.lcs });
         overlay.classList.add('hidden');
-        setTimeout(() => onData(data), 60);
+        setTimeout(() => {
+          try { onRows(rows); } catch (err) { overlay.classList.remove('hidden'); statusEl.textContent = 'Error: ' + err.message; console.error(err); }
+        }, 60);
       } catch (err) {
         statusEl.textContent = 'Error: ' + err.message;
         console.error(err);

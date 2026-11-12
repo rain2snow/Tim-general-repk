@@ -56,6 +56,7 @@ src/
     pools.js, demand.js       shared-job pools; day-of-week demand basis
     network.js                CN network lines, capacity classes, distance-to-network
     hubs.js                   hub-and-spoke model: hub assignment, tactical cover, strategic transfers
+    planEdit.js               captive-plan editing: derivations, day-of-week, train re-homing, diff
     planning.js               donors, re-task candidates, loco index
     queue.js                  console action queue
     actionsRequired.js        Actions Required worklists + CSV
@@ -92,6 +93,47 @@ a browser. UI modules talk through `state.js` (`app` + `on/emit('plans')`), not 
   at the pool's primary station.
 * **Dead** means LD / DM / DIT (low/mid HP only), routed to the assigned shop or the nearest one.
   **Deadhead** means DH units with their destination and ETA.
+
+## Captive Plan tab (editable)
+
+The **Captive Plan** tab lists all 237 plan locations, with search, a region filter and an "edited
+only" toggle. Selecting a location opens an editor where you can change:
+
+* its **jobs / trains**: the train IDs, plus the units each job needs by type (e.g. `2× GP9/GP38`).
+  The location's requirement and its by-type breakdown are *derived* from the jobs, as in the
+  source plan.
+* the **requirement by day** (Sun–Sat). When the requirement changes, every day shifts by the
+  same amount, so the busiest day keeps matching the requirement.
+* **region, zone, captive-jobs count and coordinates.**
+
+You can also **add new locations**. Warnings cover a busiest day that doesn't match the
+requirement, missing coordinates, and train IDs already used at another location.
+
+Edits build up as a **draft** until you press **Apply to console**. That re-runs the analysis on the
+current snapshot, so the Console, Dashboard, hubs, actions and map all update. It also saves the
+plan in this browser, and the header shows an **Edited plan** chip.
+
+* **Export JSON** downloads the plan. Replace `data/static-plan.json` with it to make it the
+  built-in plan for everyone.
+* **Import JSON** loads a plan into the draft for review.
+* **Reset to built-in** discards all edits.
+
+How it works:
+
+* **Train IDs home units.** A unit on a train is homed by its train base (the ID minus its last
+  character: `L580311` → `L58031`). Adding a train ID to a location homes that train there, and
+  removing one releases it. This is recorded in the plan as `meta.base2home_overrides`, and
+  `analyze()` applies it, so an exported plan carries its own re-homing everywhere (app, CLI, build).
+  Placeholder jobs such as `HUMP0` or `SPARE0` don't home anything. Shared jobs counted at another
+  terminal are shown read-only.
+* **Re-analysis is lossless.** Each fleet record in the snapshot keeps the raw STP fields the
+  engine reads (`stp`), so `rowsFromFleet()` rebuilds the export exactly. Re-analysing the
+  unedited plan reproduces the baked snapshot byte-for-byte (unit-tested). A CSV loaded with
+  **Update snapshot** is analysed against the active (edited) plan.
+
+`tests/unit/planEdit.test.js` covers the derivations, re-homing and re-analysis.
+`tests/e2e/plan-editor.mjs` drives the whole flow in a browser: edit, apply, console updates,
+export, reload persistence and reset.
 
 ## Hub-and-spoke dispatch
 
