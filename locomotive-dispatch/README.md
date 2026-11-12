@@ -36,11 +36,13 @@ data/                       reference data + baked snapshot (JSON, extracted fro
   lcs-fleet.json              LCS-equipped units
   snapshot.json               analysed snapshot shown on open
   cn-network.json             CN rail network extracted from CN's weight-limitations map (230 lines)
+  hubs.json                   hubs (repair shops) and the zones each one handles
 src/
   core/                     pure logic: no DOM, runs in Node and the browser
     analyze.js                STP rows -> stations / dead / deadhead / fleet model
     pools.js, demand.js       shared-job pools; day-of-week demand basis
     network.js                CN network lines, capacity classes, distance-to-network
+    hubs.js                   hub-and-spoke model: hub assignment, tactical cover, strategic transfers
     planning.js               donors, re-task candidates, loco index
     queue.js                  console action queue
     actionsRequired.js        Actions Required worklists + CSV
@@ -77,6 +79,37 @@ a browser. UI modules talk through `state.js` (`app` + `on/emit('plans')`), not 
   at the pool's primary station.
 * **Dead** means LD / DM / DIT (low/mid HP only), routed to the assigned shop or the nearest one.
   **Deadhead** means DH units with their destination and ETA.
+
+## Hub-and-spoke dispatch
+
+Dispatching is organised around **hubs, which are the repair shops**. Each hub handles the plan zones
+it sits in. `data/hubs.json` is editable and sets which shops form each hub and which zones it owns:
+
+* Co-located shops form one hub: Symington and Transcona in Winnipeg, Kirk Yard and Woodcrest in Chicago.
+* A hub always owns the zone its shop sits in.
+* A zone owned by two hubs is split by the nearest shop. This applies to LAKE (Duluth / Stevens
+  Point) and IOWA (Chicago / Waterloo).
+* Stations with no zone go to the nearest hub.
+
+`src/core/hubs.js` builds the model, counting shared pools once at their primary station. The
+console **Action queue** has two modes:
+
+* **Tactical (by hub).** Actions are grouped under the hub that owns them. Hubs that can't cover
+  themselves come first, then hubs with overdue inspections. Each action carries a hub-level
+  instruction:
+  * Shortages: an *allocated* in-hub cover, such as "Cover in hub: 2 from SMITH (SD40)". Each
+    donor's spare units are drawn down only once. Any remainder is marked *escalated to Strategic*.
+  * Inspections (overdue or due within 3 days): swap the unit into the hub's shop.
+  * Dead units: noted with whether their assigned shop is in this hub.
+  * Re-tasks: on-site, with no movement needed.
+* **Strategic (system).** The system balance (units short, covered in hub, needing transfer, spare)
+  and a balance row per hub after it covers itself. It also shows shop load (units in shop plus
+  dead units inbound) and suggested **transfers between hubs**, from residual surplus to residual
+  deficit, nearest first. Transfers take a plan and a resolved flag like any other action.
+
+The two modes always reconcile: the units the tactical plan leaves uncovered equal the strategic
+deficit. Both follow the day-of-week demand toggle. `tests/unit/hubs.test.js` covers assignment,
+pool handling, cover allocation, reconciliation, and transfers.
 
 ## CN rail network layer
 
@@ -132,5 +165,7 @@ These are deliberate fixes, and the parity test asserts them:
    in the console queue keeps focus through the auto-refresh.
 5. The rail corridor layer draws CN's network extracted from its weight-limitations system map
    (with weight capacity), instead of the original's nearest-neighbour links between stations.
-6. Leaflet is bundled from npm instead of loaded from a CDN, so the file works offline. Map tiles
+6. The console action queue is organised hub-and-spoke (Tactical by hub / Strategic system view)
+   instead of one flat list; every original action is still there, with an added hub-level hint.
+7. Leaflet is bundled from npm instead of loaded from a CDN, so the file works offline. Map tiles
    still need a network connection, and the console works without them.

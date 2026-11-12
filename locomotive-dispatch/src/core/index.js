@@ -6,6 +6,7 @@ export * from './keys.js';
 export * from './families.js';
 export * from './geo.js';
 export * from './network.js';
+export * from './hubs.js';
 export * from './pools.js';
 export * from './demand.js';
 export * from './analyze.js';

@@ -10,6 +10,9 @@ export const app = {
   stationsByKey: {},
   /** current re-task candidates */
   retask: [],
+  /** hub-and-spoke config (data/hubs.json) and the derived model (tactical + strategic) */
+  hubs: null,
+  hubModel: null,
   /** day-of-week demand (0-6) or null for peak */
   dow: null,
   /** dashboard needs a rebuild on next open */

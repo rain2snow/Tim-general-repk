@@ -1,6 +1,7 @@
 /** Application composition: wires the modules once, then (re)renders on every data change. */
 import { buildLocoIndex, stationIndex, computeRetask } from '../core/planning.js';
 import { applyDemandDay } from '../core/demand.js';
+import { buildHubModel } from '../core/hubs.js';
 import { formatSnapshotLabel } from '../core/dates.js';
 import { stationPlanState } from '../core/store.js';
 import { $$, setText } from './dom.js';
@@ -26,6 +27,7 @@ export function render() {
   app.locoIndex = buildLocoIndex(data.fleet);
   app.stationsByKey = stationIndex(data.stations);
   app.retask = computeRetask(data.stations, app.locoIndex);
+  app.hubModel = app.hubs ? buildHubModel(data, app.hubs, { retask: app.retask }) : null;
   resetToConsole();
   setText('snapdate', formatSnapshotLabel(data.meta && data.meta.snapshot));
   renderMap(data);
@@ -54,7 +56,8 @@ function refreshPlanMarks() {
   $$('#kpi-detail .kd-card[data-key]').forEach((c) => c.classList.toggle('planned', planned(c.dataset.key)));
 }
 
-export function startApp({ snapshot, reference, network }) {
+export function startApp({ snapshot, reference, network, hubs }) {
+  app.hubs = hubs || null;
   initMap('map');
   if (network) renderRailLegend(renderNetwork(network), network);
   initLayerToggles();

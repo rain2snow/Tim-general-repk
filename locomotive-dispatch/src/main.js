@@ -8,6 +8,7 @@ import base2home from '../data/base2home.json';
 import multiHome from '../data/base2home-multi.json';
 import lcsFleet from '../data/lcs-fleet.json';
 import cnNetwork from '../data/cn-network.json';
+import hubs from '../data/hubs.json';
 import { startApp } from './ui/app.js';
 import { markerByKey, deadByLoco, dhByLoco, layers } from './ui/map/mapView.js';
 
@@ -15,6 +16,7 @@ const app = startApp({
   snapshot,
   reference: { plan, base2home, multiHome, lcs: new Set(lcsFleet) },
   network: cnNetwork,
+  hubs,
 });
 
 // handy for debugging in the console (also used by the e2e parity test)

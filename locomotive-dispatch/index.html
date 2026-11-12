@@ -116,7 +116,11 @@
   <aside class="right" id="right">
     <button class="panel-collapse" id="rcollapse" title="Collapse this panel">▶</button>
     <div class="qhead">
-      <h2>Action queue</h2>
+      <h2>Action queue <span class="qsub" id="qsub">by hub</span></h2>
+      <div class="qmode" id="qmode">
+        <button data-mode="tactical" class="on" title="Hub-level actions: shortages, overdue / due inspections, dead units, re-tasks">Tactical <span class="b" id="c-tac">0</span></button>
+        <button data-mode="strategic" title="System view: which hubs are short or in surplus, and transfers between hubs">Strategic <span class="b" id="c-str">0</span></button>
+      </div>
       <div class="seg" id="seg">
         <button data-f="all" class="on">All <span class="b" id="c-all">0</span></button>
         <button data-f="route">Route <span class="b" id="c-route">0</span></button>
