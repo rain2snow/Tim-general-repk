@@ -14,7 +14,7 @@ import { initDemandToggle } from './console/demandToggle.js';
 import { initQueue, rebuildQueue, renderQueue } from './console/actionQueue.js';
 import { initTiles } from './console/tiles.js';
 import { initPanels } from './console/panels.js';
-import { initViewSwitcher, registerView, resetToConsole } from './views/navigation.js';
+import { initViewSwitcher, registerView, resetToConsole, showView } from './views/navigation.js';
 import { openDashboard, initDashboardExport } from './views/dashboard/index.js';
 import { buildFleetView } from './views/fleetView.js';
 import { buildActionsRequired } from './views/actionsRequired.js';
@@ -24,6 +24,8 @@ import { analyze, rowsFromFleet } from '../core/analyze.js';
 import { loadSavedPlan, savePlan, clearSavedPlan } from './planStore.js';
 import { initPlanView, buildPlanView } from './views/planView.js';
 import { initThemeToggle } from './theme.js';
+import { loadAssignments, saveAssignments, assignOption } from './assignStore.js';
+import { markerByKey } from './map/mapView.js';
 
 /** Re-render everything derived from app.data. */
 export function render() {
@@ -36,6 +38,7 @@ export function render() {
   setText('snapdate', formatSnapshotLabel(data.meta && data.meta.snapshot));
   renderMap(data);
   renderCounts(data);
+  renderLocoList();
   rebuildQueue();
   app.dashStale = true;
   emit('data');
@@ -70,7 +73,38 @@ const snapshotDateOf = (d) => {
 export function analyzeWithPlan(plan = app.plan) {
   const r = app.reference;
   return analyze(app.rows, { ...plan, shops: r.plan.shops }, r.base2home,
-    { multiHome: r.multiHome, lcs: r.lcs, now: app.snapshotNow || undefined });
+    { multiHome: r.multiHome, lcs: r.lcs, now: app.snapshotNow || undefined, assign: assignOption(app.assignments) });
+}
+
+/* ---------- manual locomotive assignments (dispatcher overrides at a terminal) ---------- */
+
+/**
+ * Set (k = station key), release (k = '') or undo (k = null) a manual assignment, re-analyse and
+ * keep the dispatcher where they were (reopens the terminal popup on its Assign tab).
+ */
+export function setAssignment(loco, k, note = '', reopen = null) {
+  const map = { ...app.assignments };
+  if (k === null) delete map[loco];
+  else map[loco] = { k, note: note || '', at: new Date().toISOString(), ...(reopen ? { from: reopen } : {}) };
+  app.assignments = map;
+  saveAssignments(map);
+  setData(analyzeWithPlan());
+  emit('assign');
+  if (reopen) setTimeout(() => { const m = markerByKey[reopen]; if (m) m.openPopup(); }, 30);
+}
+
+export function clearAssignments() {
+  app.assignments = {};
+  saveAssignments({});
+  setData(analyzeWithPlan());
+  emit('assign');
+}
+
+/** Loco-ID suggestions for the Assign tab. */
+function renderLocoList() {
+  let dl = document.getElementById('asg-locos');
+  if (!dl) { dl = document.createElement('datalist'); dl.id = 'asg-locos'; document.body.appendChild(dl); }
+  dl.innerHTML = (app.data.fleet || []).filter((f) => !f.hhp).map((f) => `<option value="${f.loco}">${f.model} · ${f.op} · ${f.loc}</option>`).join('');
 }
 
 /** Make `plan` the active captive plan: persist it (or clear when built-in) and re-analyse. */
@@ -97,6 +131,7 @@ export function startApp({ snapshot, reference, network, hubs }) {
   app.plan = reference.plan;
   app.rows = rowsFromFleet(snapshot.fleet);   // the snapshot can be re-analysed losslessly
   app.snapshotNow = snapshotDateOf(snapshot);
+  app.assignments = loadAssignments();
   const saved = loadSavedPlan();
   initMap('map');
   initThemeToggle();
@@ -115,17 +150,26 @@ export function startApp({ snapshot, reference, network, hubs }) {
   initDashboardExport();
   initSearch();
   on('plans', refreshPlanMarks);
+  document.addEventListener('dispatch:assign', (e) => {
+    const { loco, k, note, station } = e.detail;
+    setAssignment(loco, k, note, station);
+  });
+  const chip = document.getElementById('asgchip');
+  if (chip) {
+    chip.addEventListener('click', () => showView('fleet'));
+    on('assign', () => { const n = Object.keys(app.assignments).length; chip.hidden = !n; chip.textContent = `${n} manual`; });
+  }
   const loader = initLoader(loadRows);
   try {
     if (saved) {                         // this browser has an edited plan: use it
       app.plan = { ...saved.plan, shops: reference.plan.shops };
       app.planEdited = true;
-      app.data = analyzeWithPlan();
-    } else {
-      app.data = snapshot;
     }
+    // edited plan or manual assignments need a re-analysis; otherwise the baked snapshot is exact
+    app.data = saved || Object.keys(app.assignments).length ? analyzeWithPlan() : snapshot;
     render();
     emit('plan');
+    emit('assign');
   } catch (e) {
     console.error(e);
     loader.fail('Built-in snapshot failed to load — please load an STP file.');

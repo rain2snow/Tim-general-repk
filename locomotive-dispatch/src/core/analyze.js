@@ -11,6 +11,8 @@
  *      multiHome  train-base -> [candidate home keys] for colliding bases (data/base2home-multi.json)
  *      day        0-6 to use day-of-week requirement, null for peak
  *      lcs        Set/obj of LCS-equipped loco ids (data/lcs-fleet.json)
+ *      assign     manual assignments { locoId: stationKey | "" } — overrides the train-based home;
+ *                 "" releases the unit: no home, and not counted toward any terminal
  */
 import { SPARE_OPS, SLUG_MODELS, INSPECTION_WINDOW_DAYS } from './constants.js';
 import { parseDate, dayDiff, isoDate, detectSnapshot } from './dates.js';
@@ -79,6 +81,8 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
   const base2home = effectiveBase2Home(base2homeIn, plan);
   const multiHome = options.multiHome || {};
   const lcs = toLookup(options.lcs);
+  // manual assignments: loco -> station key (assign there) or '' (released: count where it sits)
+  const assign = options.assign || {};
   const DAY = options.day ?? null;
   const NOW = options.now || detectSnapshot(stpRows) ||
     (plan.meta && plan.meta.snapshot ? parseDate(plan.meta.snapshot) : null) || new Date();
@@ -95,10 +99,11 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
     const op = r['OpCode'], desig = r['Designation'], train = r['Train ID'] || '',
       model = r['Loco Model'], t = r['Loco Type'], loco = r['Loco ID'], curLoc = r['Current Location'] || '';
     const pkey = keyOf(curLoc), hhp = t === 'HHP', slug = SLUG_MODELS.has(model);
-    const h = resolveHome(r, { stationSet, base2home, multiHome });
+    const ov = Object.prototype.hasOwnProperty.call(assign, loco) ? assign[loco] : undefined;
+    const h = ov !== undefined ? (ov && stationSet[ov] ? ov : null) : resolveHome(r, { stationSet, base2home, multiHome });
     const isroad = !!h && h !== pkey;
     const rec = {
-      loco, model, t, op, desig, hhp, slug, lcs: !!lcs[loco], pkey, home: h, road: isroad, assigned: !!h,
+      loco, model, t, op, desig, hhp, slug, lcs: !!lcs[loco], pkey, home: h, road: isroad, assigned: !!h, released: ov === '',
       fdate: parseDate(r['Insp Date']), insp: r['Insp'] || '', train, curLoc,
       since: parseDate(r['Since in OpCode']), etrDate: parseDate(r['ETR']), etrRaw: (r['ETR'] || '').trim(),
     };
@@ -108,6 +113,7 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
       train, fam: planFamily(model), dest: (r['Destination'] || '').trim(), shop: (r['Shop'] || '').trim(),
       sinceD: rec.since ? dayDiff(NOW, rec.since) : null, etr: (r['ETR'] || '').trim(),
       stp: compactStp(r),
+      ...(ov !== undefined ? { manual: ov || '' } : {}),
     });
     if (isroad && !hhp) push(roadunits, h, rec);
     if ((op === 'LD' || op === 'DM' || desig === 'DIT') && !hhp) {
@@ -130,7 +136,8 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
     }
   });
 
-  const elig = (u) => u.desig === 'Available' && !u.hhp && !u.slug;
+  // counted on-hand: Available low/mid HP, not a slug, and not released by the dispatcher
+  const elig = (u) => u.desig === 'Available' && !u.hhp && !u.slug && !u.released;
 
   const stations = plan.plan.map((p) => {
     const rost = roster[p.k] || [], rd = roadunits[p.k] || [];

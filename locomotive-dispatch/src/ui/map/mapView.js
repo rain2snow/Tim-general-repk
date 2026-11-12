@@ -68,7 +68,8 @@ function renderStations(stations) {
       : `width:${r * 2}px;height:${r * 2}px;background:${color};--pc:${color}88`;
     const m = L.marker([s.lat, s.lng], { icon: divIcon(`<div class="${dia ? 'mk-dia' : 'mk-dot'}" style="${style}"></div>`, r * 2) })
       // popup content is a function so the plan-state band is always current
-      .bindPopup(() => stationPopupElement(s, stationPlanState(app.store, s, app.retask), app.locoIndex), stationPopupOptions());
+      .bindPopup(() => stationPopupElement(s, stationPlanState(app.store, s, app.retask), app.locoIndex,
+        { map: app.assignments || {}, nameOf: (k) => (app.stationsByKey[k] ? app.stationsByKey[k].station : String(k).split('|')[0]) }), stationPopupOptions());
     m.addTo(layers[layerForStatus(s.status)]);
     markerByKey[s.k] = m;
 

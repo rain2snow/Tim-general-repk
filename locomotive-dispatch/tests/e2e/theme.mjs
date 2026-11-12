@@ -28,13 +28,13 @@ const state = () => page.evaluate(() => ({
 await page.goto(URL_);
 await page.waitForFunction(() => document.getElementById('c-all').textContent !== '0');
 let s = await state();
-check(s.theme === 'dark' && s.bg === 'rgb(12, 13, 15)', `default is dark (${s.bg})`);
-check(s.label === 'Switch to light mode' && s.pressed === 'false', 'toggle labelled "Switch to light mode"');
+check(s.theme === 'light' && s.bg === 'rgb(238, 240, 243)', `default is light (${s.bg})`);
+check(s.label === 'Switch to dark mode' && s.pressed === 'true', 'toggle labelled "Switch to dark mode"');
 
 await page.click('#themetog');
 s = await state();
-check(s.theme === 'light' && s.bg === 'rgb(238, 240, 243)', `click switches to light (${s.bg})`);
-check(s.label === 'Switch to dark mode' && s.pressed === 'true', 'toggle relabels to "Switch to dark mode"');
+check(s.theme === 'dark' && s.bg === 'rgb(12, 13, 15)', `click switches to dark (${s.bg})`);
+check(s.label === 'Switch to light mode' && s.pressed === 'false', 'toggle relabels to "Switch to light mode"');
 
 // persisted, and applied before the app script runs (no flash of dark)
 await page.addInitScript(() => {
@@ -44,20 +44,20 @@ await page.addInitScript(() => {
 });
 await page.reload();
 await page.waitForFunction(() => document.getElementById('c-all').textContent !== '0');
-check((await state()).theme === 'light', 'light persists after reload');
-check(await page.evaluate(() => window.__themeAtParse) === 'light', 'theme applied before first paint (set during parse)');
+check((await state()).theme === 'dark', 'dark persists after reload');
+check(await page.evaluate(() => window.__themeAtParse) === 'dark', 'chosen theme applied before first paint (set during parse)');
 
-// every view renders in light without errors
+// every view renders without errors
 for (const v of ['dash', 'fleet', 'actions', 'plan', 'console']) {
   await page.evaluate((view) => document.querySelector(`#vtab button[data-view="${view}"]`).click(), v);
   await page.waitForTimeout(120);
 }
-check((await state()).theme === 'light', 'theme unchanged while switching views');
+check((await state()).theme === 'dark', 'theme unchanged while switching views');
 
 await page.click('#themetog');
 await page.reload();
 await page.waitForFunction(() => document.getElementById('c-all').textContent !== '0');
-check((await state()).theme === 'dark', 'back to dark persists after reload');
+check((await state()).theme === 'light', 'back to light persists after reload');
 check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.join('; ') : ''));
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : '\nTHEME OK');

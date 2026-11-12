@@ -1,5 +1,5 @@
 /**
- * Light / dark theme. Dark is the default; the choice is remembered in this browser.
+ * Light / dark theme. Light is the default; the choice is remembered in this browser.
  * index.html applies the saved theme before first paint (no flash); this module wires the
  * header toggle and keeps the basemap in step.
  */

@@ -60,6 +60,54 @@ function unitsPane(s) {
 }
 
 /**
+ * Assign tab: dispatcher's manual assignments at this terminal.
+ * Lists every unit counted toward the terminal (with how it got here) and lets the dispatcher
+ * assign another unit here, release one, or undo a manual change. Actions bubble up as a
+ * 'dispatch:assign' event ({ loco, k, note }; k = this key | '' release | null undo) for the app.
+ */
+function assignPane(s, locoIndex, asg) {
+  const map = (asg && asg.map) || {};
+  const nameOf = (asg && asg.nameOf) || ((k) => stationOfKey(k));
+  const counted = (s.have_units || []).map((u) => ({ loco: u[0], model: u[1], fam: u[2], road: !!u[5] }));
+  const countedSet = new Set(counted.map((u) => u.loco));
+  const via = (u) => {
+    const f = (locoIndex && locoIndex[u.loco]) || {};
+    if (f.manual === s.k) return '<span class="asg-tag man">manual</span>';
+    if (u.road) return `<span class="asg-tag road" title="${esc(f.loc || '')}">on road · ${esc(f.loc || '')}</span>`;
+    return f.home === s.k ? '<span class="asg-tag">train home</span>' : '<span class="asg-tag">sitting here</span>';
+  };
+  const btn = (loco, k, label, cls = '') => `<button type="button" class="asg-btn ${cls}" data-asg-loco="${esc(loco)}" data-asg-k="${k === null ? 'null' : esc(k)}">${label}</button>`;
+  const rows = counted.map((u) => {
+    const manual = map[u.loco] && map[u.loco].k === s.k;
+    const note = manual && map[u.loco].note ? `<span class="asg-note" title="${esc(map[u.loco].note)}">“${esc(map[u.loco].note)}”</span>` : '';
+    return `<div class="u asg-row"><span><b>${esc(u.loco)}</b> ${esc(u.model)} <span class="dim">${esc(u.fam)}</span> ${via(u)}${note}</span>` +
+      `<span>${manual ? btn(u.loco, null, 'Undo') : btn(u.loco, '', 'Release', 'ghost')}</span></div>`;
+  }).join('') || '<div class="u more">No units counted here.</div>';
+  // manual assignments to this terminal that do not count (not Available / HHP / slug), and units released here
+  const extra = Object.entries(map).filter(([loco, v]) => (v.k === s.k && !countedSet.has(loco)) ||
+    (v.k === '' && (v.from === s.k || (locoIndex && locoIndex[loco] && locoIndex[loco].k === s.k)))).map(([loco, v]) => {
+    const f = (locoIndex && locoIndex[loco]) || {};
+    const why = v.k === '' ? 'released — not counted at any terminal' :
+      f.hhp ? 'HHP — not counted' : !f.op ? 'not in this snapshot' : `${esc(f.op)} · ${esc(f.desig || '')} — not counted`;
+    return `<div class="u asg-row nc"><span><b>${esc(loco)}</b> ${esc(f.model || '')} <span class="asg-tag ${v.k === '' ? '' : 'man'}">${v.k === '' ? 'released' : 'manual'}</span> <span class="dim">${why}</span></span><span>${btn(loco, null, 'Undo')}</span></div>`;
+  }).join('');
+  const nManual = Object.values(map).filter((v) => v.k === s.k).length;
+  return {
+    key: 'assign', label: 'Assign', count: nManual || '+',
+    cap: `Assignments at ${esc(s.station)} · ${counted.length} counted${nManual ? ` · ${nManual} manual` : ''}`,
+    body: `<form class="asg-add" autocomplete="off">
+        <input class="asg-loco" name="loco" list="asg-locos" placeholder="Loco ID, e.g. CN4138" spellcheck="false" required>
+        <input class="asg-notein" name="note" placeholder="Note (optional)" maxlength="80">
+        <button type="submit" class="asg-btn primary">Assign here</button>
+        <div class="asg-msg" aria-live="polite"></div>
+      </form>
+      <div class="asg-help"><b>Assign</b> overrides a unit's train-based home: it counts toward ${esc(s.station)} (on the road if it is elsewhere) when Available and under 4000&nbsp;hp. <b>Release</b> takes a unit out of the count at every terminal. <b>Undo</b> returns it to automatic.</div>
+      <div class="units roster pgrid asg-list">${rows}${extra}</div>`,
+    nameOf,
+  };
+}
+
+/**
  * Units homed here but out on the road. Only Available low/mid-HP units count toward on-hand, so a
  * unit riding its train dead (LD / DM / DIT), in shop, etc. is dimmed and tagged "not counted".
  * Status comes from the fleet index (road_units do not carry OpCode / Designation).
@@ -149,7 +197,7 @@ let lastTab = null;
  * @param planSt    '' | 'planned' | 'done'
  * @param locoIndex loco id -> fleet record (OpCode / Designation for the on-the-road list)
  */
-export function stationPopup(s, planSt = '', locoIndex = null) {
+export function stationPopup(s, planSt = '', locoIndex = null, asg = null) {
   const lsUnits = (s.roster || []).filter((u) => u.op === 'LS');
   const inb = s.inbound || [];
   const planNote = planSt ? netband(CO.green, planSt === 'done' ? '✓' : '●', (planSt === 'done' ? 'plan resolved' : 'plan in place') + ' — see Actions Required tab') : '';
@@ -164,7 +212,8 @@ export function stationPopup(s, planSt = '', locoIndex = null) {
     lsUnits.length ? stat('In shop (LS)', lsUnits.length, CO.cyan) : '',
     inb.length ? stat('Inbound (deadhead)', inb.length, CO.inbound, `· ETA ${esc(inb[0].eta) || '—'}`) : '',
   ].join('');
-  const panes = [trainsPane(s), unitsPane(s), shopPane(lsUnits), inspPane(s), roadPane(s, locoIndex), inboundPane(inb), sharedPane(s)].filter(Boolean);
+  const panes = [trainsPane(s), unitsPane(s), shopPane(lsUnits), inspPane(s), roadPane(s, locoIndex), inboundPane(inb), sharedPane(s),
+    asg ? assignPane(s, locoIndex, asg) : null].filter(Boolean);
   const active = (panes.find((p) => p.key === lastTab) || panes[0] || {}).key;
   const tabs = panes.length ? `<div class="ptabs" role="tablist">` + panes.map((p) =>
     `<button type="button" role="tab" class="ptab${p.key === active ? ' on' : ''}${p.alert ? ' alert' : ''}" data-tab="${p.key}">${p.label}<span class="pn">${p.count}</span></button>`).join('') + `</div>` : '';
@@ -183,16 +232,42 @@ export function stationPopup(s, planSt = '', locoIndex = null) {
 }
 
 /** Wrap the station popup in an element with working tabs (Leaflet accepts an element as content). */
-export function stationPopupElement(s, planSt, locoIndex) {
+export function stationPopupElement(s, planSt, locoIndex, asg = null) {
   const el = document.createElement('div');
-  el.innerHTML = stationPopup(s, planSt, locoIndex);
+  el.innerHTML = stationPopup(s, planSt, locoIndex, asg);
+  const emit = (loco, k, note) => el.dispatchEvent(new CustomEvent('dispatch:assign', { bubbles: true, detail: { loco, k, note, station: s.k } }));
   el.addEventListener('click', (e) => {
+    const ab = e.target.closest('.asg-btn[data-asg-loco]');
+    if (ab) { const k = ab.dataset.asgK; emit(ab.dataset.asgLoco, k === 'null' ? null : k); return; }
     const btn = e.target.closest('.ptab');
     if (!btn) return;
     lastTab = btn.dataset.tab;
     el.querySelectorAll('.ptab').forEach((b) => b.classList.toggle('on', b === btn));
     el.querySelectorAll('.ppane').forEach((p) => p.classList.toggle('on', p.dataset.pane === lastTab));
   });
+  const form = el.querySelector('.asg-add');
+  if (form) {
+    const input = form.querySelector('.asg-loco'), msg = form.querySelector('.asg-msg');
+    const describe = (id) => {
+      const f = locoIndex && locoIndex[id];
+      if (!id) return ['', ''];
+      if (!f) return [`${id} is not in this snapshot.`, 'err'];
+      const counts = f.desig === 'Available' && !f.hhp && !/^(YBU|HBU)/.test(f.model || '');
+      const homeTxt = f.home ? (f.home === s.k ? 'already homed here' : `homed at ${(asg && asg.nameOf ? asg.nameOf(f.home) : f.home)}`) : 'no home terminal';
+      return [`${f.loco} ${f.model} · ${f.op} ${f.desig} · at ${f.loc || '?'} · ${homeTxt}` +
+        (counts ? '' : ' — will not count (only Available units under 4000 hp count)'), counts ? 'ok' : 'warn'];
+    };
+    input.addEventListener('input', () => {
+      input.value = input.value.toUpperCase().replace(/\s+/g, '');
+      const [t, cls] = describe(input.value); msg.textContent = t; msg.className = 'asg-msg ' + cls;
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = input.value.trim().toUpperCase();
+      if (!locoIndex || !locoIndex[id]) { const [t] = describe(id); msg.textContent = t || 'Enter a loco ID.'; msg.className = 'asg-msg err'; return; }
+      emit(id, s.k, form.querySelector('.asg-notein').value.trim());
+    });
+  }
   return el;
 }
 

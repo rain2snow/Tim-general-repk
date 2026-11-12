@@ -1,6 +1,35 @@
 /* fleet breakdown table (top of dashboard) */
 .fleetbox{background:linear-gradient(180deg,var(--card-a),var(--card-b));border:1px solid var(--border2);border-radius:12px;padding:14px 16px 10px;margin:16px 0 4px}
 .fl-head{display:flex;align-items:baseline;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+
+/* manual locomotive assignments (Fleet tab panel + station popup Assign tab) */
+.asg-panel{margin:0 0 18px;padding:12px 14px;border:1px solid var(--border2);border-radius:12px;background:var(--panel)}
+.asg-panel.empty-panel{padding:10px 14px}
+.asg-panel.empty-panel .fl-head{margin:0}
+.asg-actions{margin-left:auto;display:flex;gap:6px}
+.asg-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.asg-tbl th{text-align:left;font-size:9.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--faint);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border)}
+.asg-tbl td{padding:6px 8px;border-bottom:1px solid var(--rowline);color:var(--txt)}
+.asg-tbl td:first-child{font-family:'IBM Plex Mono',monospace}
+.asg-tbl .dim{color:var(--faint)} .asg-tbl .pos{color:var(--green);font-weight:600} .asg-tbl .neg{color:var(--red);font-weight:600}
+.asg-btn{font:600 10.5px 'IBM Plex Sans',sans-serif;padding:3px 9px;border-radius:6px;border:1px solid var(--border2);background:var(--panel2);color:var(--txt);cursor:pointer;white-space:nowrap}
+.asg-btn:hover{border-color:var(--cn)}
+.asg-btn.primary{background:var(--cn);border-color:var(--cn);color:#fff}
+.asg-btn.ghost{background:transparent;color:var(--dim)}
+.asg-tag{font:600 9px 'IBM Plex Mono',monospace;padding:1px 5px;border-radius:4px;background:var(--wash2);color:var(--dim);margin-left:4px;white-space:nowrap}
+.asg-tag.man{background:var(--amber-bg);color:var(--amber)}
+.asg-tag.road{color:var(--amber)}
+.asg-add{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.asg-add input{background:var(--panel2);border:1px solid var(--border2);border-radius:6px;color:var(--txt);font:12px 'IBM Plex Mono',monospace;padding:5px 8px}
+.asg-add .asg-loco{width:130px;text-transform:uppercase} .asg-add .asg-notein{flex:1;min-width:120px;font-family:inherit}
+.asg-add input:focus{outline:none;border-color:var(--cn)}
+.asg-msg{flex-basis:100%;font-size:11px;min-height:14px;color:var(--dim)}
+.asg-msg.ok{color:var(--green)} .asg-msg.warn{color:var(--amber)} .asg-msg.err{color:var(--red)}
+.asg-help{font-size:10.5px;color:var(--faint);line-height:1.45;margin-bottom:8px}
+.asg-list .asg-row{align-items:center}
+.asg-list .asg-row.nc{opacity:.7}
+.asg-note{font-size:10px;color:var(--faint);margin-left:5px;font-style:italic}
+.planchip.asg{color:var(--cyan);border-color:var(--cyan);background:color-mix(in srgb,var(--cyan) 10%,transparent)}
 .fl-head h3{font-size:13.5px;font-weight:680;letter-spacing:.3px}
 .fl-head .fl-sub{font-size:11px;color:var(--dim)}
 .fl-head .fl-tot{margin-left:auto;font-size:12px;color:var(--dim)}

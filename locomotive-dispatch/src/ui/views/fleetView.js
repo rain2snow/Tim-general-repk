@@ -1,8 +1,11 @@
 /** Fleet view: low/mid-HP status partition with drill-down unit lists. */
 import { esc } from '../../core/html.js';
 import { fleetBreakdown, FLEET_CATEGORIES, FLEET_OVERLAYS } from '../../core/fleet.js';
-import { $$, byId } from '../dom.js';
+import { $$, byId, downloadText } from '../dom.js';
+import { csvCellMinimal } from '../../core/csv.js';
 import { app } from '../state.js';
+import { setAssignment, clearAssignments } from '../app.js';
+import { showView } from './navigation.js';
 
 let drill = {}, shopName = {};
 
@@ -29,6 +32,57 @@ export function buildFleetView() {
     FLEET_OVERLAYS.map((m) => row(m, b.counts[m.k])).join('') +
     '</div><div class="fl-detail" id="fl-detail"></div>';
   $$('.fl-row', box).forEach((r) => r.addEventListener('click', () => toggleDrill(r.dataset.fcat, r)));
+  box.insertAdjacentHTML('afterbegin', assignmentsHtml());
+  wireAssignments(box);
+}
+
+/* ------------------------------------------------------------------ manual assignments */
+const stationName = (k) => (k ? (app.stationsByKey[k] ? `${app.stationsByKey[k].station} ${app.stationsByKey[k].state}` : k) : '');
+
+function assignmentRows() {
+  return Object.entries(app.assignments || {}).sort((a, b) => (b[1].at || '').localeCompare(a[1].at || '')).map(([loco, v]) => {
+    const f = app.locoIndex[loco] || {};
+    const counts = !!f.op && f.desig === 'Available' && !f.hhp;
+    return { loco, model: f.model || '', status: f.op ? `${f.op} · ${f.desig}` : 'not in snapshot', at: f.loc || '',
+      to: v.k === '' ? 'released' : stationName(v.k), counts: v.k === '' ? '' : counts ? 'yes' : 'no',
+      note: v.note || '', when: (v.at || '').slice(0, 16).replace('T', ' ') };
+  });
+}
+
+function assignmentsHtml() {
+  const rows = assignmentRows();
+  if (!rows.length) {
+    return '<div class="asg-panel empty-panel"><div class="fl-head"><h3>Manual assignments</h3><span class="fl-sub">none — open a terminal on the map and use its <b>Assign</b> tab to assign or release units</span></div></div>';
+  }
+  return '<div class="asg-panel"><div class="fl-head"><h3>Manual assignments</h3>' +
+    '<span class="fl-sub">dispatcher overrides of the train-based home · saved in this browser</span>' +
+    '<span class="asg-actions"><button class="actexport" data-asg-act="export">Export CSV</button><button class="actexport" data-asg-act="clear">Clear all</button></span></div>' +
+    '<table class="asg-tbl"><thead><tr><th>Loco</th><th>Model</th><th>Status</th><th>Now at</th><th>Assigned to</th><th>Counts</th><th>Note</th><th>Set</th><th></th></tr></thead><tbody>' +
+    rows.map((r) => `<tr><td><b>${esc(r.loco)}</b></td><td>${esc(r.model)}</td><td>${esc(r.status)}</td><td>${esc(r.at)}</td>` +
+      `<td>${r.to === 'released' ? '<span class="asg-tag">released</span>' : esc(r.to)}</td>` +
+      `<td>${r.counts === 'yes' ? '<span class="pos">yes</span>' : r.counts === 'no' ? '<span class="neg" title="Only Available units under 4000 hp count">no</span>' : '—'}</td>` +
+      `<td class="dim">${esc(r.note)}</td><td class="dim">${esc(r.when)}</td>` +
+      `<td><button class="asg-btn" data-asg-undo="${esc(r.loco)}">Undo</button></td></tr>`).join('') +
+    '</tbody></table></div>';
+}
+
+function wireAssignments(box) {
+  const panel = box.querySelector('.asg-panel');
+  if (!panel) return;
+  panel.addEventListener('click', (e) => {
+    const undo = e.target.closest('[data-asg-undo]');
+    if (undo) { setAssignment(undo.dataset.asgUndo, null); showView('fleet'); return; }
+    const act = e.target.closest('[data-asg-act]');
+    if (!act) return;
+    if (act.dataset.asgAct === 'export') {
+      const cols = ['loco', 'model', 'status', 'at', 'to', 'counts', 'note', 'when'];
+      const csv = [['Loco', 'Model', 'Status', 'Now at', 'Assigned to', 'Counts', 'Note', 'Set'].join(',')]
+        .concat(assignmentRows().map((r) => cols.map((c) => csvCellMinimal(r[c])).join(','))).join('\n');
+      downloadText(csv, `manual_assignments_${(app.data.meta && app.data.meta.snapshot) || 'export'}.csv`);
+    } else if (act.dataset.asgAct === 'clear' && confirm('Remove all manual locomotive assignments in this browser?')) {
+      clearAssignments(); showView('fleet');
+    }
+  });
 }
 
 const days = (n) => (n == null ? '—' : n + 'd');

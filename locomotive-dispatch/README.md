@@ -96,7 +96,7 @@ a browser. UI modules talk through `state.js` (`app` + `on/emit('plans')`), not 
 
 ## Light / dark mode
 
-The sun/moon button in the header switches between **dark** (the default) and **light**. The choice
+The sun/moon button in the header switches between **light** (the default) and **dark**. The choice
 is remembered in this browser. A small script in `index.html` applies it before the first paint,
 so the page never flashes the wrong theme.
 
@@ -115,6 +115,28 @@ How it's built:
 
 `tests/e2e/theme.mjs` checks the toggle, its labels, persistence, applying before first paint, and
 the switch back.
+
+## Manual locomotive assignments (at the terminal)
+
+Open any terminal on the map and choose its **Assign** tab. It lists every unit counted toward
+that terminal and how it got there: train home, sitting here, on the road, or manual.
+
+* **Assign here.** Type a loco ID (the field autocompletes and checks status and location as you
+  type) and add an optional note. This overrides the unit's train-based home: the unit counts
+  toward this terminal, "on the road" if it is elsewhere. Only Available units under 4000 hp
+  count, as everywhere else; any other unit is accepted but shown as "not counted".
+* **Release** takes a unit out of the count at every terminal, including where it physically sits.
+* **Undo** returns the unit to its automatic assignment.
+
+Each change re-runs the analysis, so balances, hubs, the action queue and the dashboard update.
+The popup then reopens on the Assign tab. Assignments are saved in this browser, and the header
+shows an **N manual** chip. The Fleet tab's **Manual assignments** panel lists every override,
+with status, location, target, whether it counts, note and time, plus Undo, Export CSV and
+Clear all.
+
+In the engine these are passed as `analyze(…, { assign: { locoId: stationKey | '' } })`; the
+fleet record carries `manual`. They're covered by `tests/unit/assign.test.js` and the browser
+flow in `tests/e2e/assign.mjs`.
 
 ## Captive Plan tab (editable)
 

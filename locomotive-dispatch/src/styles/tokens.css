@@ -1,6 +1,7 @@
 /*
  * Theme tokens. Every colour in the stylesheets resolves through these.
- * Dark is the default; light applies with <html data-theme="light"> (see ui/theme.js).
+ * :root holds the dark values; light applies with <html data-theme="light">, which index.html sets
+ * before first paint unless the user chose dark (light is the default — see ui/theme.js).
  */
 :root{
   color-scheme:dark;
