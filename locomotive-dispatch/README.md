@@ -142,8 +142,8 @@ contains. It warns if the snapshot is older than yours. Then pick one:
 * **Merge** — keep your assignments and action plans, add theirs (theirs win on conflicts), and
   use their plan and snapshot if they have them.
 
-After applying, the whole console re-analyses, and everything persists across reloads (the demand
-day included). A file that isn't a session (for example a captive-plan export) is rejected with a
+After applying, the whole console re-analyses, and everything persists across reloads, except the
+demand day: like the toggle itself, it applies to the current visit. A file that isn't a session (for example a captive-plan export) is rejected with a
 message saying where it belongs.
 
 The format lives in `src/core/session.js`. It's covered by `tests/unit/session.test.js` (round
