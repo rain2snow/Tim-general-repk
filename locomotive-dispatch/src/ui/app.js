@@ -7,6 +7,7 @@ import { $$, setText } from './dom.js';
 import { app, on, emit } from './state.js';
 import { initMap, renderMap, renderNetwork, renderPlanMarks, invalidateMapSize } from './map/mapView.js';
 import { initLayerToggles } from './console/layerToggles.js';
+import { renderRailLegend } from './console/railLegend.js';
 import { renderCounts } from './console/counts.js';
 import { initDemandToggle } from './console/demandToggle.js';
 import { initQueue, rebuildQueue, renderQueue } from './console/actionQueue.js';
@@ -55,12 +56,7 @@ function refreshPlanMarks() {
 
 export function startApp({ snapshot, reference, network }) {
   initMap('map');
-  if (network) {
-    const n = renderNetwork(network, reference.plan.plan);
-    setText('n-rail', n.lines);
-    const tog = document.querySelector('.toggle[data-layer="tracks"]');
-    if (tog) tog.title = `${n.lines} CN lines · ~${n.km.toLocaleString()} route-km`;
-  }
+  if (network) renderRailLegend(renderNetwork(network), network);
   initLayerToggles();
   initDemandToggle(render);
   initTiles();

@@ -1,7 +1,7 @@
 /** The console map: layers, markers, routing lines, CN rail network, plan ticks, fly-to. */
 import L from 'leaflet';
 import { COLORS as CO } from '../../core/constants.js';
-import { resolveNetwork, lineLengthKm } from '../../core/network.js';
+import { networkLines, capacitySummary, CAPACITY_ORDER } from '../../core/network.js';
 import { esc } from '../../core/html.js';
 import { stationPlanState } from '../../core/store.js';
 import { app } from '../state.js';
@@ -78,30 +78,47 @@ function renderStations(stations) {
   });
 }
 
-const RAIL_STYLE = {
-  main: { color: '#e8a13a', weight: 2.4, opacity: 0.8 },
-  secondary: { color: '#d99632', weight: 1.3, opacity: 0.55, dashArray: null },
+/**
+ * Weight-capacity styling. An amber/stone ramp (heaviest = brightest, solid) keeps the network
+ * readable without clashing with the status colours used by the markers.
+ */
+export const RAIL_STYLE = {
+  '286k': { color: '#e8a13a', weight: 2.0, opacity: 0.85 },
+  '272k': { color: '#c9a66b', weight: 1.6, opacity: 0.8 },
+  '268k': { color: '#b39a74', weight: 1.4, opacity: 0.8, dashArray: '6 3' },
+  '263k': { color: '#a08f78', weight: 1.4, opacity: 0.8, dashArray: '6 3' },
+  lt263k: { color: '#c47b5a', weight: 1.4, opacity: 0.85, dashArray: '2 3' },
+  rights: { color: '#8f96a3', weight: 1.2, opacity: 0.75, dashArray: '1 4' },
+};
+const railStyle = (ln) => {
+  const s = RAIL_STYLE[ln.capacity] || RAIL_STYLE['272k'];
+  return ln.rank === 'main' ? { ...s, weight: s.weight + 0.6 } : s;
 };
 
 /**
  * Draw the CN rail network (static: drawn once, independent of the snapshot).
- * Lines sit underneath the markers; hovering one names it.
- * @returns summary {lines, km} for the layer toggle count
+ * Lines sit underneath the markers; hovering one names its corridor and weight limit.
+ * @returns {lines, km, byCapacity} summary for the layer legend
  */
-export function renderNetwork(network, stations) {
+export function renderNetwork(network) {
   layers.tracks.clearLayers();
-  const { lines, unresolved } = resolveNetwork(network, stations);
-  if (unresolved.length) console.warn('[network] unresolved waypoints:', unresolved.join(', '));
-  // secondary first so main lines draw on top
-  [...lines].sort((a, b) => (a.class === 'main') - (b.class === 'main')).forEach((ln) => {
-    const style = RAIL_STYLE[ln.class] || RAIL_STYLE.secondary;
-    L.polyline(ln.path, { ...style, className: 'cn-rail cn-rail-' + ln.class })
-      .bindTooltip(`<b>${esc(ln.name)}</b><br><span style="opacity:.7">CN ${ln.class} line · ~${Math.round(lineLengthKm(ln)).toLocaleString()} km</span>`, { sticky: true, className: 'rail-tip' })
-      .on('mouseover', (e) => e.target.setStyle({ weight: style.weight + 1.6, opacity: 1 }))
-      .on('mouseout', (e) => e.target.setStyle(style))
-      .addTo(layers.tracks);
-  });
-  return { lines: lines.length, km: Math.round(lines.reduce((a, l) => a + lineLengthKm(l), 0)) };
+  const lines = networkLines(network);
+  // lightest classes first so the heavy main lines draw on top
+  [...lines].sort((a, b) => CAPACITY_ORDER.indexOf(b.capacity) - CAPACITY_ORDER.indexOf(a.capacity) || (a.rank === 'main') - (b.rank === 'main'))
+    .forEach((ln) => {
+      const style = railStyle(ln);
+      const cap = ln.capacityInfo;
+      const tip = `<b>${esc(ln.corridor)}</b><br>` +
+        (ln.capacity === 'rights' ? `<span style="opacity:.75">${esc(cap.label)}</span>`
+          : `<span style="opacity:.75">Max gross ${esc(cap.label)} · ${esc(cap.cars)}</span>`) +
+        `<br><span style="opacity:.55">this segment ~${Math.round(ln.km).toLocaleString()} km</span>`;
+      L.polyline(ln.path, { ...style, className: 'cn-rail cn-rail-' + ln.capacity })
+        .bindTooltip(tip, { sticky: true, className: 'rail-tip' })
+        .on('mouseover', (e) => e.target.setStyle({ weight: style.weight + 1.6, opacity: 1 }))
+        .on('mouseout', (e) => e.target.setStyle(style))
+        .addTo(layers.tracks);
+    });
+  return { lines: lines.length, km: Math.round(lines.reduce((a, l) => a + l.km, 0)), byCapacity: capacitySummary(lines) };
 }
 
 function renderShops(shops) {

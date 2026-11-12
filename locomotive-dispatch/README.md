@@ -35,12 +35,12 @@ data/                       reference data + baked snapshot (JSON, extracted fro
   base2home-multi.json        colliding train bases -> candidate homes
   lcs-fleet.json              LCS-equipped units
   snapshot.json               analysed snapshot shown on open
-  cn-network.json             CN rail network: 82 main/secondary lines as waypoint chains
+  cn-network.json             CN rail network extracted from CN's weight-limitations map (230 lines)
 src/
   core/                     pure logic: no DOM, runs in Node and the browser
     analyze.js                STP rows -> stations / dead / deadhead / fleet model
     pools.js, demand.js       shared-job pools; day-of-week demand basis
-    network.js                resolve CN network lines; distance-to-network checks
+    network.js                CN network lines, capacity classes, distance-to-network
     planning.js               donors, re-task candidates, loco index
     queue.js                  console action queue
     actionsRequired.js        Actions Required worklists + CSV
@@ -59,6 +59,7 @@ src/
   styles/                   original stylesheet split by feature (import order = cascade order)
   main.js                   entry: styles + data -> startApp()
 scripts/analyze-csv.mjs     CLI re-bake of data/snapshot.json
+scripts/network/            PDF -> data/cn-network.json build (Python) + corridor names
 tests/unit/                 Vitest: engine regression against the real snapshot + rules + planning
 tests/e2e/parity.mjs        Playwright: original vs rebuilt, every view, popups, exports, uploads
 ```
@@ -79,19 +80,34 @@ a browser. UI modules talk through `state.js` (`app` + `on/emit('plans')`), not 
 
 ## CN rail network layer
 
-The **CN rail network** map layer draws `data/cn-network.json`. It has 82 lines, about 25,500
-route-km, covering the CN system including IC, WC, GTW, EJ&E, DM&IR/DWP, BC Rail, Algoma Central
-and B&LE. Main lines are drawn heavier than secondary lines, and hovering a line shows its name
-and length.
+The **CN rail network** map layer is extracted from CN's own *Weight Limitations System Map* (rev. 7/2016),
+kept in [`reference/cn-weight-limitations-system-map-2016-07.pdf`](reference/cn-weight-limitations-system-map-2016-07.pdf).
+The PDF is vector, so `scripts/network/build_cn_network.py` reads its line work directly:
 
-Each line is an ordered chain of waypoints. A waypoint is either a plan station key such as
-`HALIFAX|NS`, so the line passes exactly through that terminal, or a named junction or town in
-`places`. The geometry follows the real routes at map scale. It is not the surveyed track
-centreline. To add or reroute a line, edit the JSON. `tests/unit/network.test.js` checks that:
+1. **Extract** the rail strokes. Each stroke's legend colour gives its maximum gross weight class:
+   286k, 272k, 268k, 263k, under 263k, or CN track rights on other railroads.
+2. **Georeference** the drawing: Lambert conformal conic + affine, a cubic correction, then a
+   thin-plate warp. The fit matches plan stations to the drawn lines, with four anchors in sparse
+   areas. On 20 well-surveyed cities that are *not* used in the fit, the median error is 2.0 km
+   (max 10.6 km), about the width of a drawn line on the source map.
+3. **Zoom insets.** Most of the insets are schematic diagrams, so an inset is used only if its
+   stations fit and its lines meet the main map where they leave the circle. Today that is
+   Vancouver and Quebec.
+4. **Chain, simplify, and name.** Each line gets a corridor name, from
+   `scripts/network/corridors.json`.
 
-* every waypoint resolves,
-* every terminal with a requirement and every shop lies within 5 km of a line,
-* the network is connected (the B&LE is the one deliberate exception).
+The result, `data/cn-network.json`, has 230 lines covering about 30,700 route-km. On the map,
+heavier lines are brighter and solid, and lower weight limits are dashed. Hovering a segment shows its
+corridor and weight limit. The legend under the layer toggle shows route-km per class.
+
+To rebuild after a new edition of the map:
+`pip install pymupdf scipy numpy`, then
+`python3 scripts/network/build_cn_network.py <map.pdf> data/static-plan.json scripts/network/corridors.json data/cn-network.json`.
+
+Some plan terminals sit off the 2016 network on purpose. For example, Kitchener's Guelph sub was not
+CN-operated then. `tests/unit/network.test.js` checks the source and accuracy metadata, the capacity
+classes, total route-km, proximity to plan terminals, that every shop is reached, and that the
+network runs through 11 key cities.
 
 ## Verification
 
@@ -114,7 +130,7 @@ These are deliberate fixes, and the parity test asserts them:
    `opOrder[op] || 9` treated LN's order `0` as missing.
 4. Station popups read the plan-in-place state when opened, so they are never stale. Typing a plan
    in the console queue keeps focus through the auto-refresh.
-5. The rail corridor layer draws the curated CN network instead of the original's
-   nearest-neighbour schematic links between stations.
+5. The rail corridor layer draws CN's network extracted from its weight-limitations system map
+   (with weight capacity), instead of the original's nearest-neighbour links between stations.
 6. Leaflet is bundled from npm instead of loaded from a CDN, so the file works offline. Map tiles
    still need a network connection, and the console works without them.

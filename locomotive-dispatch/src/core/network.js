@@ -1,31 +1,20 @@
 /**
  * CN rail network geometry (data/cn-network.json).
  *
- * Lines are ordered waypoint chains. A waypoint is either a plan station key (resolved to that
- * station's coordinates, so lines pass exactly through the plan terminals) or a named place.
+ * Built by scripts/network/build_cn_network.py from CN's Weight Limitations System Map
+ * (rev. 7/2016): each line is a georeferenced polyline carrying its maximum-gross-weight class
+ * ("capacity") and the corridor it belongs to.
  */
 
-/**
- * Resolve every line to a coordinate path.
- * @param network   parsed cn-network.json
- * @param stations  anything with {k, lat, lng} (plan or analysed stations)
- * @returns {{ lines: Array<{id, name, class, path: number[][], stations: string[]}>, unresolved: string[] }}
- */
-export function resolveNetwork(network, stations) {
-  const byKey = {};
-  (stations || []).forEach((s) => { if (s.lat != null && s.lng != null) byKey[s.k] = [s.lat, s.lng]; });
-  const unresolved = new Set();
-  const lines = (network.lines || []).map((ln) => {
-    const path = [], onLine = [];
-    ln.via.forEach((v) => {
-      const pt = byKey[v] || (network.places || {})[v];
-      if (!pt) { unresolved.add(v); return; }
-      if (byKey[v]) onLine.push(v);
-      path.push(pt);
-    });
-    return { id: ln.id, name: ln.name, class: ln.class || 'secondary', path, stations: onLine };
-  });
-  return { lines: lines.filter((l) => l.path.length >= 2), unresolved: [...unresolved] };
+/** Display order + styling hints per capacity class (heaviest first). */
+export const CAPACITY_ORDER = ['286k', '272k', '268k', '263k', 'lt263k', 'rights'];
+
+/** Lines with their path, capacity metadata and length. */
+export function networkLines(network) {
+  const caps = network.capacity || {};
+  return (network.lines || [])
+    .filter((l) => l.path && l.path.length >= 2)
+    .map((l) => ({ ...l, capacityInfo: caps[l.capacity] || { label: l.capacity, cars: '' }, km: lineLengthKm(l) }));
 }
 
 /** Approximate distance (km) from a point to a segment, on a local equirectangular projection. */
@@ -37,7 +26,7 @@ function pointSegmentKm(p, a, b) {
   return Math.hypot(ax + t * dx, ay + t * dy);
 }
 
-/** Distance (km) from a point to the nearest line of a resolved network, and which line. */
+/** Distance (km) from a point to the nearest line, and which line. */
 export function distanceToNetwork(lines, lat, lng) {
   let best = Infinity, line = null;
   for (const l of lines) {
@@ -49,9 +38,16 @@ export function distanceToNetwork(lines, lat, lng) {
   return { km: best, line };
 }
 
-/** Route length (km) of a resolved line. */
+/** Route length (km) of a line. */
 export function lineLengthKm(line) {
   let km = 0;
   for (let i = 1; i < line.path.length; i++) km += pointSegmentKm(line.path[i - 1], line.path[i], line.path[i]);
   return km;
+}
+
+/** Route-km per capacity class. */
+export function capacitySummary(lines) {
+  const out = {};
+  lines.forEach((l) => { out[l.capacity] = (out[l.capacity] || 0) + (l.km ?? lineLengthKm(l)); });
+  return out;
 }
