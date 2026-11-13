@@ -10,7 +10,7 @@ export const app = {
   stationsByKey: {},
   /** current re-task candidates */
   retask: [],
-  /** hub-and-spoke config (data/hubs.json) and the derived model (tactical + strategic) */
+  /** hub-and-line-point config (data/hubs.json) and the derived model (tactical + strategic) */
   hubs: null,
   hubModel: null,
   /** day-of-week demand (0-6) or null for peak */

@@ -55,7 +55,7 @@ src/
     analyze.js                STP rows -> stations / dead / deadhead / fleet model
     pools.js, demand.js       shared-job pools; day-of-week demand basis
     network.js                CN network lines, capacity classes, distance-to-network
-    hubs.js                   hub-and-spoke model: hub assignment, tactical cover, strategic transfers
+    hubs.js                   hub-and-line-point model: hub assignment, tactical cover, strategic transfers
     planEdit.js               captive-plan editing: derivations, day-of-week, train re-homing, diff
     planning.js               donors, re-task candidates, loco index
     queue.js                  console action queue
@@ -214,10 +214,10 @@ job, units, note }] })`. Fleet records carry `dhTo` / `consist`, manual deadhead
 `manual`, and stations with consists get a `consists` summary. Without any, the output is
 byte-identical to before. Covered by `tests/unit/ops.test.js` and `tests/e2e/ops.mjs`.
 
-## Swap plans (hub ↔ spoke)
+## Swap plans (hub ↔ line point)
 
-A swap exchanges units between a spoke terminal and its hub's shop terminal. Units due for
-inspection go from the spoke to the shop, and fit units come back, so the spoke keeps its power
+A swap exchanges units between a line point and its hub's shop terminal. Units due for
+inspection go from the line point to the shop, and fit units come back, so the line point keeps its power
 while the shop gets the work.
 
 Each hub's **shop terminal** is the yard its shop works from. That is the nearest station with a
@@ -229,23 +229,23 @@ EDMONTON. Chicago has two: Kirk Yard and Markham.
 * **⇄ Plan swap** on an inspection action in the Tactical queue. It isn't offered at the shop
   terminal itself.
 * **+ New swap** in a hub group's **Swap plans** list.
-* **⇄ Plan a swap…** in a terminal popup's Deadhead tab. From a spoke this plans with its hub
-  shop; from a shop terminal it plans with one of its spokes.
+* **⇄ Plan a swap…** in a terminal popup's Deadhead tab. From a line point this plans with its hub
+  shop; from a shop terminal it plans with one of its line points.
 * **+ New swap plan** in the Fleet tab.
 
 **The editor**
 
-* Pick the hub, the spoke and the hub terminal.
-* **Auto-fill** sends every unit due for inspection at the spoke. It brings back the same number
+* Pick the hub, the line point and the hub terminal.
+* **Auto-fill** sends every unit due for inspection at the line point. It brings back the same number
   of fit replacements from the hub terminal: Available, under 4000 hp, and with no inspection
   due within 7 days. Units of the same family are picked first.
 * Units already in another plan, a manual deadhead or a consist are skipped. They are shown as
   "in use" in the candidate lists.
 * Adjust either side from the candidate lists or by typing an ID. Each unit shows its inspection
   status.
-* A live summary shows the net effect on the spoke ("even swap", or ±N), approximate HP each
+* A live summary shows the net effect on the line point ("even swap", or ±N), approximate HP each
   way, and warnings:
-  * the spoke loses power;
+  * the line point loses power;
   * a unit isn't where the plan expects it;
   * a replacement isn't fit, or its family differs;
   * a unit is missing from the snapshot.
@@ -309,7 +309,7 @@ How it works:
 `tests/e2e/plan-editor.mjs` drives the whole flow in a browser: edit, apply, console updates,
 export, reload persistence and reset.
 
-## Hub-and-spoke dispatch
+## Hub-and-line-point dispatch
 
 Dispatching is organised around **hubs, which are the repair shops**. Each hub handles the plan zones
 it sits in. `data/hubs.json` is editable and sets which shops form each hub and which zones it owns:
@@ -404,7 +404,7 @@ These are deliberate fixes, and the parity test asserts them:
    listed), In shop, Inspections, On the road, Inbound and Shared. Each tab scrolls in a capped area,
    and the last tab used is remembered. The parity test checks that every word and number of each
    original popup is still present.
-7. The console action queue is organised hub-and-spoke (Tactical by hub / Strategic system view)
+7. The console action queue is organised hub-and-line-point (Tactical by hub / Strategic system view)
    instead of one flat list; every original action is still there, with an added hub-level hint.
 8. Leaflet is bundled from npm instead of loaded from a CDN, so the file works offline. Map tiles
    still need a network connection, and the console works without them.

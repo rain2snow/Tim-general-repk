@@ -1,5 +1,5 @@
 /**
- * Hub <-> spoke swap plans, end to end (run after npm run build):
+ * Hub <-> line point swap plans, end to end (run after npm run build):
  * "Plan swap" on an inspection action -> editor auto-fills (due units out, fit units back) ->
  * edit sides / live net + warnings -> save -> counts, inbound "swap" tags, queue + hub list,
  * terminal popup, Fleet tab panel (edit stays on Fleet, CSV) -> persists -> in the handoff file ->
@@ -33,23 +33,23 @@ const chipLocos = (side) => page.$$eval(`#swapdlg .swp-chips[data-side="${side}"
 await load();
 await expandHubs();
 const btn = await page.$('#queue .qswap[data-swap-new]');
-check(!!btn, 'inspection actions at spokes offer "⇄ Plan swap"');
-const SPOKE = await btn.getAttribute('data-swap-new');
-const s0 = await station(SPOKE);
+check(!!btn, 'inspection actions at line points offer "⇄ Plan swap"');
+const POINT = await btn.getAttribute('data-swap-new');
+const s0 = await station(POINT);
 await btn.click();
 await page.waitForSelector('#swapdlg.show');
-check((await page.inputValue('#swapdlg select[name="spoke"]')) === SPOKE, `editor opens on the spoke (${SPOKE})`);
+check((await page.inputValue('#swapdlg select[name="point"]')) === POINT, `editor opens on the line point (${POINT})`);
 const BASE = await page.inputValue('#swapdlg select[name="base"]');
-const out0 = await chipLocos('toHub'), back0 = await chipLocos('toSpoke');
+const out0 = await chipLocos('toHub'), back0 = await chipLocos('toPoint');
 check(out0.length > 0, `auto-fill sends the due units to the shop: ${out0.join(', ')}`);
 check(back0.length > 0, `auto-fill brings fit units back from ${BASE}: ${back0.join(', ')}`);
 const evenTxt = await page.textContent('#swapdlg .swp-net');
 if (shots) await page.screenshot({ path: shots + '/swap-editor.png' });
 
-// remove a replacement -> the spoke loses power (warning); add one back from the candidates
-await page.click(`#swapdlg .swp-chips[data-side="toSpoke"] [data-sw="del"][data-loco="${back0[0]}"]`);
-check(/loses/.test(await page.textContent('#swapdlg .swp-card')), 'removing a replacement warns that the spoke loses a unit');
-await page.click(`#swapdlg .swp-cand[data-side="toSpoke"][data-loco="${back0[0]}"]`);
+// remove a replacement -> the line point loses power (warning); add one back from the candidates
+await page.click(`#swapdlg .swp-chips[data-side="toPoint"] [data-sw="del"][data-loco="${back0[0]}"]`);
+check(/loses/.test(await page.textContent('#swapdlg .swp-card')), 'removing a replacement warns that the line point loses a unit');
+await page.click(`#swapdlg .swp-cand[data-side="toPoint"][data-loco="${back0[0]}"]`);
 check((await page.textContent('#swapdlg .swp-net')) === evenTxt, `adding it back restores "${evenTxt}"`);
 await page.fill('#swapdlg input[name="eta"]', '11/14 06:00');
 await page.fill('#swapdlg input[name="note"]', 'inspection swap');
@@ -57,11 +57,11 @@ await page.click('#swapdlg [data-sw="save"]');
 await page.waitForTimeout(300);
 
 const w = (await swaps())[0];
-check(!(await page.isVisible('#swapdlg.show')) && w && w.id === 'W1' && w.spoke === SPOKE && w.base === BASE, 'plan W1 saved, editor closed');
-const s1 = await station(SPOKE), b1 = await station(BASE);
+check(!(await page.isVisible('#swapdlg.show')) && w && w.id === 'W1' && w.point === POINT && w.base === BASE, 'plan W1 saved, editor closed');
+const s1 = await station(POINT), b1 = await station(BASE);
 const net = evenTxt === 'even swap' ? 0 : null;
-if (net === 0) check(s1.have === s0.have, `even swap: ${SPOKE} on hand stays ${s0.have}`);
-check(back0.every((l) => s1.inbound.some(([x, sw]) => x === l && sw === 'W1')), 'replacements are inbound to the spoke, tagged W1');
+if (net === 0) check(s1.have === s0.have, `even swap: ${POINT} on hand stays ${s0.have}`);
+check(back0.every((l) => s1.inbound.some(([x, sw]) => x === l && sw === 'W1')), 'replacements are inbound to the line point, tagged W1');
 check(out0.every((l) => b1.inbound.some(([x, sw]) => x === l && sw === 'W1')), 'due units are inbound to the hub terminal, tagged W1');
 await expandHubs();
 check(await page.isVisible(`#queue .qswap.has[data-swap-edit="W1"]`), 'queue inspection action now shows "⇄ In swap W1"');
@@ -70,10 +70,10 @@ check((await page.textContent('#asgchip')).trim() === '1 manual', 'header chip c
 if (shots) await page.screenshot({ path: shots + '/swap-queue.png' });
 
 // terminal popup
-await page.evaluate((key) => { const m = window.dispatchApp.markers.markerByKey[key]; m._map.setView(m.getLatLng(), 7, { animate: false }); m.openPopup(); }, SPOKE);
+await page.evaluate((key) => { const m = window.dispatchApp.markers.markerByKey[key]; m._map.setView(m.getLatLng(), 7, { animate: false }); m.openPopup(); }, POINT);
 await page.waitForSelector('.station-popup .ptab[data-tab="deadhead"]');
 await page.click('.station-popup .ptab[data-tab="deadhead"]');
-check((await page.textContent('.station-popup .ppane[data-pane="deadhead"]')).includes('W1'), 'spoke popup lists the swap plan');
+check((await page.textContent('.station-popup .ppane[data-pane="deadhead"]')).includes('W1'), 'line point popup lists the swap plan');
 check((await page.textContent('.station-popup .ppane[data-pane="inbound"]')).includes('swap W1'), 'Inbound tab tags the replacements "swap W1"');
 await page.click('.station-popup [data-swap-act="edit"]');
 await page.waitForSelector('#swapdlg.show');
@@ -96,7 +96,7 @@ if (shots) await page.screenshot({ path: shots + '/swap-fleet.png' });
 
 // persists + handoff
 await load();
-check((await swaps()).length === 1 && (await station(SPOKE)).inbound.some(([, sw]) => sw === 'W1'), 'plan persists and is re-applied after reload');
+check((await swaps()).length === 1 && (await station(POINT)).inbound.some(([, sw]) => sw === 'W1'), 'plan persists and is re-applied after reload');
 await page.click('#reloadbtn');
 const [sf] = await Promise.all([page.waitForEvent('download'), page.click('#ho-export')]);
 check(JSON.parse(readFileSync(await sf.path(), 'utf8')).swaps[0].id === 'W1', 'session handoff file includes swap plans');
@@ -109,7 +109,7 @@ await page.waitForSelector('#swapdlg.show');
 page.once('dialog', (d) => d.accept());
 await page.click('#swapdlg [data-sw="delete"]');
 await page.waitForTimeout(300);
-const s2 = await station(SPOKE);
+const s2 = await station(POINT);
 check((await swaps()).length === 0 && s2.have === s0.have && !s2.inbound.some(([, sw]) => sw), 'cancelling the plan restores the counts');
 
 check(!errors.length, `no page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);

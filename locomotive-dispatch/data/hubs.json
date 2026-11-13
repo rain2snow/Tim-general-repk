@@ -1,6 +1,6 @@
 {
   "meta": {
-    "description": "Hub-and-spoke dispatch: each hub is a repair shop (or co-located shops) and handles the plan zones it sits in.",
+    "description": "Hub-and-line-point dispatch: each hub is a repair shop (or co-located shops) and handles the plan zones it sits in.",
     "rules": [
       "A station belongs to the hub that owns its zone.",
       "A hub always owns the zone its shop(s) sit in (e.g. Woodcrest is in IOWA, so Chicago shares IOWA with Waterloo).",

@@ -12,7 +12,7 @@
 .swp-grid3 label{display:flex;flex-direction:column;gap:3px;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--faint);font-weight:600}
 .swp-card select,.swp-card input{background:var(--panel2);border:1px solid var(--border2);border-radius:6px;color:var(--txt);font:12px 'IBM Plex Sans',sans-serif;padding:6px 8px;text-transform:none;letter-spacing:0}
 .swp-card select:focus,.swp-card input:focus{outline:none;border-color:var(--cn)}
-.swp-spoke{font-size:11.5px;color:var(--dim);margin:0 0 10px}
+.swp-point{font-size:11.5px;color:var(--dim);margin:0 0 10px}
 .swp-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .swp-col{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--panel2);min-width:0}
 .swp-ch{font-weight:700;font-size:12px;margin-bottom:6px}

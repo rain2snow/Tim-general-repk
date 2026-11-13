@@ -151,12 +151,12 @@ export function deadheadConsist(id, to, opts = {}, reopen = null) {
  */
 export function saveSwap(w, reopen = null) {
   const id = w.id || nextSwapId(app.swaps);
-  const units = new Set([...w.toHub, ...w.toSpoke]);
+  const units = new Set([...w.toHub, ...w.toPoint]);
   const others = app.swaps.filter((x) => x.id !== id)
-    .map((x) => ({ ...x, toHub: x.toHub.filter((l) => !units.has(l)), toSpoke: x.toSpoke.filter((l) => !units.has(l)) }))
-    .filter((x) => x.toHub.length || x.toSpoke.length);
+    .map((x) => ({ ...x, toHub: x.toHub.filter((l) => !units.has(l)), toPoint: x.toPoint.filter((l) => !units.has(l)) }))
+    .filter((x) => x.toHub.length || x.toPoint.length);
   const prev = app.swaps.find((x) => x.id === id);
-  app.swaps = [...others, { id, hub: w.hub, spoke: w.spoke, base: w.base, toHub: [...w.toHub], toSpoke: [...w.toSpoke],
+  app.swaps = [...others, { id, hub: w.hub, point: w.point, base: w.base, toHub: [...w.toHub], toPoint: [...w.toPoint],
     eta: w.eta || '', note: w.note || '', at: prev ? prev.at : new Date().toISOString() }]
     .sort((a, b) => +a.id.slice(1) - +b.id.slice(1));
   app.deadheads = Object.fromEntries(Object.entries(app.deadheads).filter(([l]) => !units.has(l)));
@@ -296,9 +296,9 @@ export function startApp({ snapshot, reference, network, hubs }) {
     if (action === 'dissolve') dissolveConsist(id, station); else saveConsist(consist, station);
   });
   document.addEventListener('dispatch:swap', (e) => {
-    const { action, id, spoke, base, units } = e.detail;
+    const { action, id, point, base, units } = e.detail;
     if (action === 'delete') deleteSwap(id, e.detail.station);
-    else openSwapEditor(id ? { id } : { spoke, base, units });
+    else openSwapEditor(id ? { id } : { point, base, units });
   });
   document.addEventListener('dispatch:assign', (e) => {
     const { loco, k, note, station } = e.detail;

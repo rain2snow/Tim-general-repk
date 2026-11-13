@@ -1,5 +1,5 @@
 /**
- * Console action queue (right panel), hub-and-spoke:
+ * Console action queue (right panel), hub-and-line-point:
  *   Tactical  — actions grouped by hub (repair shop), worst hub first; each action carries an
  *               in-hub suggestion (cover from in-hub surplus, swap into the hub shop, ...).
  *   Strategic — system view: hub balances after in-hub cover, and transfers between hubs.
@@ -65,7 +65,7 @@ export function initQueue() {
     if (!b) return;
     e.stopPropagation();
     if (b.dataset.swapEdit) openSwapEditor({ id: b.dataset.swapEdit });
-    else if (b.dataset.swapNew) openSwapEditor({ spoke: b.dataset.swapNew });
+    else if (b.dataset.swapNew) openSwapEditor({ point: b.dataset.swapNew });
     else openSwapEditor({ hub: b.dataset.swapHub });
   }, { capture: true });
   $$('#seg button').forEach((b) => b.addEventListener('click', () => setQueueFilter(b.dataset.f)));
@@ -120,7 +120,7 @@ function swapListHtml(hubId) {
   const rows = ws.map((w) => {
     const sum = swapSummary(w, app.data);
     return `<div class="swl-row" data-swap-edit="${esc(w.id)}" title="${esc(sum.warnings.join(' · ') || 'Edit')}"><span class="swl-id">${esc(w.id)}</span>
-      <span class="swl-t">${esc(nm(w.spoke))} ⇄ ${esc(nm(w.base))} · ${w.toHub.length} out / ${w.toSpoke.length} back</span>
+      <span class="swl-t">${esc(nm(w.point))} ⇄ ${esc(nm(w.base))} · ${w.toHub.length} out / ${w.toPoint.length} back</span>
       ${sum.warnings.length ? '<span class="warn">⚠</span>' : ''}<span class="hpill ${sum.net < 0 ? 'short' : 'balanced'}">${sum.net === 0 ? 'EVEN' : sum.net > 0 ? '+' + sum.net : sum.net}</span></div>`;
   }).join('');
   return `<div class="swplist" data-swhub="${esc(hubId)}"><div class="swl-h">Swap plans · ${ws.length}<button type="button" class="qswap" data-swap-hub="${esc(hubId)}">+ New swap</button></div>${rows}</div>`;

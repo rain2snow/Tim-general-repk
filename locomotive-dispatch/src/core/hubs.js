@@ -1,5 +1,5 @@
 /**
- * Hub-and-spoke dispatch model.
+ * Hub-and-line-point dispatch model.
  *
  * Hubs are repair shops (data/hubs.json); each handles the plan zones it sits in.
  *   - Tactical: per-hub actions — cover shortages (from in-hub surplus first), swap overdue / due

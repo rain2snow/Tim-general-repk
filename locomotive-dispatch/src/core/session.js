@@ -10,7 +10,7 @@
  *     assignments:{ locoId: { k, note, at, from? } },          manual locomotive assignments
  *     deadheads:  { locoId: { to, eta, note, at } },          planned deadhead moves
  *     consists:   [{ id, name, k, job, units: [loco…], note }], consists (lead unit first)
- *     swaps:      [{ id, hub, spoke, base, toHub, toSpoke, eta, note }], hub ↔ spoke swap plans
+ *     swaps:      [{ id, hub, point, base, toHub, toPoint, eta, note }], hub ↔ line point swap plans
  *     actionPlans:{ 'short:EDMONTON|AB': 'text', 'short:EDMONTON|AB:done': '1', ... },
  *     snapshot:   { meta, fleet } | null                         the analysed snapshot (lossless:
  *                                                              fleet records carry raw STP fields)
@@ -18,6 +18,7 @@
  */
 import { diffPlan } from './planEdit.js';
 import { ACTION_KEY_RE } from './store.js';
+import { normalizeSwap } from './swaps.js';
 
 export const SESSION_APP = 'cn-locomotive-dispatch';
 export const SESSION_KIND = 'session';
@@ -32,7 +33,7 @@ export function buildBundle({ settings = {}, plan = null, assignments = {}, dead
     assignments: { ...assignments },
     deadheads: { ...deadheads },
     consists: consists.map((c) => ({ ...c, units: [...c.units] })),
-    swaps: swaps.map((w) => ({ ...w, toHub: [...w.toHub], toSpoke: [...w.toSpoke] })),
+    swaps: swaps.map((w) => ({ ...w, toHub: [...w.toHub], toPoint: [...w.toPoint] })),
     actionPlans: Object.fromEntries(Object.entries(actionPlans).filter(([k, v]) => ACTION_KEY_RE.test(k) && v)),
     snapshot: snapshot ? { meta: snapshot.meta, fleet: snapshot.fleet } : null,
   };
@@ -52,7 +53,8 @@ export function parseBundle(text) {
   if (b.assignments != null && (typeof b.assignments !== 'object' || Array.isArray(b.assignments))) throw new Error('Session file: "assignments" is malformed.');
   if (b.snapshot != null && !(b.snapshot.meta && Array.isArray(b.snapshot.fleet))) throw new Error('Session file: "snapshot" is malformed.');
   if (b.consists != null && !(Array.isArray(b.consists) && b.consists.every((c) => c && c.id && c.k && Array.isArray(c.units)))) throw new Error('Session file: "consists" is malformed.');
-  if (b.swaps != null && !(Array.isArray(b.swaps) && b.swaps.every((w) => w && w.id && w.spoke && w.base && Array.isArray(w.toHub) && Array.isArray(w.toSpoke)))) throw new Error('Session file: "swaps" is malformed.');
+  if (Array.isArray(b.swaps)) b = { ...b, swaps: b.swaps.map(normalizeSwap) };
+  if (b.swaps != null && !(Array.isArray(b.swaps) && b.swaps.every((w) => w && w.id && w.point && w.base && Array.isArray(w.toHub) && Array.isArray(w.toPoint)))) throw new Error('Session file: "swaps" is malformed.');
   return {
     ...b,
     settings: b.settings || {},
@@ -113,10 +115,10 @@ export function combineSessions(mine, incoming, mode = 'replace') {
 
 /** Union of swap plans: incoming wins on the same id, and a unit stays in one plan (incoming's). */
 function mergeSwaps(mine, incoming) {
-  const ids = new Set(incoming.map((w) => w.id)), taken = new Set(incoming.flatMap((w) => [...w.toHub, ...w.toSpoke]));
+  const ids = new Set(incoming.map((w) => w.id)), taken = new Set(incoming.flatMap((w) => [...w.toHub, ...w.toPoint]));
   const kept = mine.filter((w) => !ids.has(w.id))
-    .map((w) => ({ ...w, toHub: w.toHub.filter((l) => !taken.has(l)), toSpoke: w.toSpoke.filter((l) => !taken.has(l)) }))
-    .filter((w) => w.toHub.length || w.toSpoke.length);
+    .map((w) => ({ ...w, toHub: w.toHub.filter((l) => !taken.has(l)), toPoint: w.toPoint.filter((l) => !taken.has(l)) }))
+    .filter((w) => w.toHub.length || w.toPoint.length);
   return [...kept, ...incoming.map((w) => ({ ...w }))];
 }
 

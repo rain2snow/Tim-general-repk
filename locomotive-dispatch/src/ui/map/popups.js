@@ -192,17 +192,17 @@ function deadheadPane(s, locoIndex, ctx) {
   };
 }
 
-/** Swap plans touching this terminal (as spoke or hub terminal) + a button to plan one. */
+/** Swap plans touching this terminal (as line point or hub terminal) + a button to plan one. */
 function swapSection(s, ctx) {
-  const ws = ((ctx && ctx.swaps) || []).filter((w) => w.spoke === s.k || w.base === s.k);
+  const ws = ((ctx && ctx.swaps) || []).filter((w) => w.point === s.k || w.base === s.k);
   const nameOf = (ctx && ctx.nameOf) || ((k) => String(k).split('|')[0]);
   const isTerm = ctx && ctx.isHubTerminal && ctx.isHubTerminal(s.k);
-  const rows = ws.map((w) => `<div class="u asg-row"><span><span class="asg-tag swp">${esc(w.id)}</span> ${w.spoke === s.k ? `⇄ ${esc(nameOf(w.base))}` : `⇄ ${esc(nameOf(w.spoke))}`}
-      <span class="dim">${w.toHub.length} to shop · ${w.toSpoke.length} to spoke${w.eta ? ' · ETA ' + esc(w.eta) : ''}</span></span>
+  const rows = ws.map((w) => `<div class="u asg-row"><span><span class="asg-tag swp">${esc(w.id)}</span> ${w.point === s.k ? `⇄ ${esc(nameOf(w.base))}` : `⇄ ${esc(nameOf(w.point))}`}
+      <span class="dim">${w.toHub.length} to shop · ${w.toPoint.length} to line point${w.eta ? ' · ETA ' + esc(w.eta) : ''}</span></span>
       <span><button type="button" class="asg-btn" data-swap-act="edit" data-id="${esc(w.id)}">Edit</button></span></div>`).join('');
   return `<div class="ugh">Swap plans <span>${ws.length}</span></div>
     ${rows ? `<div class="units roster pgrid">${rows}</div>` : ''}
-    <button type="button" class="asg-btn" data-swap-act="new" style="margin-top:6px">⇄ ${isTerm ? 'Plan a swap with a spoke…' : 'Plan a swap with the hub shop…'}</button>`;
+    <button type="button" class="asg-btn" data-swap-act="new" style="margin-top:6px">⇄ ${isTerm ? 'Plan a swap with a line point…' : 'Plan a swap with the hub shop…'}</button>`;
 }
 
 /**
@@ -458,7 +458,7 @@ function wireDeadheads(el, s, locoIndex, ctx) {
     if (sw) {
       e.stopPropagation();
       const term = ctx && ctx.isHubTerminal && ctx.isHubTerminal(s.k);
-      fire(el, 'dispatch:swap', sw.dataset.swapAct === 'edit' ? { action: 'edit', id: sw.dataset.id } : term ? { action: 'new', base: s.k } : { action: 'new', spoke: s.k });
+      fire(el, 'dispatch:swap', sw.dataset.swapAct === 'edit' ? { action: 'edit', id: sw.dataset.id } : term ? { action: 'new', base: s.k } : { action: 'new', point: s.k });
     }
   });
   if (!form) return;
