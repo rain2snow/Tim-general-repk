@@ -58,7 +58,7 @@ const TEXT_IDS = ['snapdate', 'netcount', 't-short', 't-even', 't-surp', 't-dead
 async function consoleState(page) {
   return page.evaluate((ids) => ({
     ...Object.fromEntries(ids.map((id) => [id, document.getElementById(id).textContent])),
-    queue: (document.querySelectorAll('#queue .collapsed').forEach((g) => g.classList.remove('collapsed')), [...document.querySelectorAll('#queue .item')]).map((el) => { const h = el.querySelector('.hint'); return h ? el.innerText.replace(h.innerText, '') : el.innerText; }).sort(),
+    queue: (document.querySelectorAll('#queue .collapsed').forEach((g) => g.classList.remove('collapsed')), [...document.querySelectorAll('#queue .item')]).map((el) => { let t = el.innerText; el.querySelectorAll('.hint, .qswap').forEach((x) => { t = t.replace(x.innerText, ''); }); return t; }).sort(),
     markers: document.querySelectorAll('.leaflet-marker-icon').length,
     // the rail layer intentionally changed (schematic corridors -> CN network): exclude it here
     paths: document.querySelectorAll('.leaflet-overlay-pane path').length -
@@ -155,7 +155,7 @@ async function planInteraction(page) {
   const chips = await page.evaluate(() => document.querySelector('.act-sum').textContent);
   await clickView(page, 'console');
   await page.waitForTimeout(200);
-  return { chips, queue: await page.evaluate(() => (document.querySelectorAll('#queue .collapsed').forEach((g) => g.classList.remove('collapsed')), [...document.querySelectorAll('#queue .item')]).map((el) => { const h = el.querySelector('.hint'); return h ? el.innerText.replace(h.innerText, '') : el.innerText; }).sort()),
+  return { chips, queue: await page.evaluate(() => (document.querySelectorAll('#queue .collapsed').forEach((g) => g.classList.remove('collapsed')), [...document.querySelectorAll('#queue .item')]).map((el) => { let t = el.innerText; el.querySelectorAll('.hint, .qswap').forEach((x) => { t = t.replace(x.innerText, ''); }); return t; }).sort()),
     ticks: await page.evaluate(() => document.querySelectorAll('.mk-plan').length) };
 }
 
@@ -266,7 +266,8 @@ try {
     console.error(`expected ${railLines} CN rail lines in rebuilt map, got ${rebuilt.console.rail}`); process.exitCode = 1;
   }
   // Intentional change 4: the queue is grouped by hub (tactical) with an in-hub hint per action, so
-  // items are compared as a set with the hint line removed; check every action carries its hub group.
+  // items are compared as a set with the hint line (and the swap-plan button) removed; check every action
+  // carries its hub group.
   const grouped = rebuilt.hubGroups;
   if (grouped && (grouped.regions.join() !== 'East,West,South' || grouped.foldedByDefault !== grouped.groups)) {
     console.error('expected regions East, West, South with hubs folded by default', grouped); process.exitCode = 1;

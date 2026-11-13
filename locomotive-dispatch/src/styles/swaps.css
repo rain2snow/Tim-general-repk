@@ -1,0 +1,55 @@
+/* swap-plan editor (modal) + swap lists in the queue / popups / Fleet tab */
+.swp-overlay{position:fixed;inset:0;z-index:9000;background:rgba(10,14,22,.45);display:none;align-items:center;justify-content:center;padding:16px}
+.swp-overlay.show{display:flex}
+.swp-card{width:min(860px,100%);max-height:92vh;overflow:auto;background:var(--panel);color:var(--txt);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:0 24px 70px var(--shadow-lg);font-size:12.5px}
+.swp-h{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.swp-t{font:700 17px 'IBM Plex Sans Condensed','IBM Plex Sans',sans-serif;letter-spacing:.3px}
+.swp-id{font:600 11px 'IBM Plex Mono',monospace;color:var(--dim);margin-left:4px}
+.swp-sub{font-size:11.5px;color:var(--dim);margin-top:2px}
+.swp-x{margin-left:auto;background:none;border:0;color:var(--dim);font-size:22px;line-height:1;cursor:pointer;padding:0 4px}
+.swp-x:hover{color:var(--txt)}
+.swp-grid3{display:grid;grid-template-columns:1fr 1.3fr 1.2fr;gap:8px;margin-bottom:8px}
+.swp-grid3 label{display:flex;flex-direction:column;gap:3px;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--faint);font-weight:600}
+.swp-card select,.swp-card input{background:var(--panel2);border:1px solid var(--border2);border-radius:6px;color:var(--txt);font:12px 'IBM Plex Sans',sans-serif;padding:6px 8px;text-transform:none;letter-spacing:0}
+.swp-card select:focus,.swp-card input:focus{outline:none;border-color:var(--cn)}
+.swp-spoke{font-size:11.5px;color:var(--dim);margin:0 0 10px}
+.swp-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.swp-col{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--panel2);min-width:0}
+.swp-ch{font-weight:700;font-size:12px;margin-bottom:6px}
+.swp-ch span{display:block;font-weight:400;font-size:10.5px;color:var(--dim);margin-top:1px}
+.swp-chips{display:flex;flex-wrap:wrap;gap:5px;min-height:24px;margin-bottom:6px;align-items:center}
+.swp-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 7px;border-radius:6px;background:var(--wash2);font-size:11.5px}
+.swp-chip.nc{opacity:.7}
+.swp-chip.bad{outline:1px solid var(--red)}
+.swp-chip b,.swp-cand b{font-family:'IBM Plex Mono',monospace}
+.swp-i{font:600 9.5px 'IBM Plex Mono',monospace;padding:1px 4px;border-radius:4px;background:var(--wash);color:var(--dim);white-space:nowrap}
+.swp-i.od{color:var(--red)} .swp-i.due{color:var(--amber)} .swp-i.soon{color:var(--amber)} .swp-i.ok{color:var(--green)} .swp-i.away{color:var(--amber)}
+.swp-add{display:flex;gap:6px;margin-bottom:6px}
+.swp-add input{flex:1;min-width:0;font-family:'IBM Plex Mono',monospace;text-transform:uppercase}
+.swp-cl{font-size:9.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--faint);font-weight:700;margin:6px 0 4px}
+.swp-cands{display:flex;flex-direction:column;gap:3px;max-height:190px;overflow:auto}
+.swp-cand{text-align:left;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--txt);font:11.5px 'IBM Plex Sans',sans-serif;padding:4px 7px;cursor:pointer;display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.swp-cand:hover{border-color:var(--cn)}
+.swp-cand.busy{opacity:.55}
+.swp-none{font-size:11px;padding:4px 2px}
+.swp-row{display:flex;gap:8px;margin:10px 0 8px}
+.swp-row input{flex:1;min-width:0}
+.swp-sum{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:11.5px;color:var(--dim);margin-bottom:4px}
+.swp-net{font-weight:700;color:var(--txt)} .swp-net.neg{color:var(--red)} .swp-net.pos{color:var(--green)}
+.swp-btns{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.swp-card .dim{color:var(--faint)}
+@media(max-width:700px){.swp-grid3,.swp-cols{grid-template-columns:1fr}}
+
+/* swap plans listed in a hub group of the tactical queue */
+.swplist{margin:4px 10px 8px;border:1px dashed var(--border2);border-radius:8px;padding:6px 8px;font-size:11.5px}
+.swplist .swl-h{display:flex;align-items:center;gap:6px;font-size:9.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--faint);font-weight:700}
+.swplist .swl-h button{margin-left:auto}
+.swl-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-top:1px solid var(--rowline);cursor:pointer}
+.swl-row:first-of-type{border-top:0}
+.swl-row .swl-id{font:600 10px 'IBM Plex Mono',monospace;color:var(--dim)}
+.swl-row .swl-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.swl-row .warn{color:var(--amber)}
+.qswap{margin-top:5px;font:600 10.5px 'IBM Plex Sans',sans-serif;padding:2px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--panel2);color:var(--txt);cursor:pointer}
+.qswap:hover{border-color:var(--cn)}
+.qswap.has{border-color:var(--cyan);color:var(--cyan)}
+.asg-tag.swp{background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan)}

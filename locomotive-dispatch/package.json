@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build && node tests/e2e/parity.mjs && node tests/e2e/plan-editor.mjs && node tests/e2e/theme.mjs && node tests/e2e/assign.mjs && node tests/e2e/handoff.mjs && node tests/e2e/ops.mjs",
+    "test:e2e": "npm run build && node tests/e2e/parity.mjs && node tests/e2e/plan-editor.mjs && node tests/e2e/theme.mjs && node tests/e2e/assign.mjs && node tests/e2e/handoff.mjs && node tests/e2e/ops.mjs && node tests/e2e/swaps.mjs",
     "analyze": "node scripts/analyze-csv.mjs"
   },
   "dependencies": {

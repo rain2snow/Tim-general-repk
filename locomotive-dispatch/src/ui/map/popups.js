@@ -187,8 +187,22 @@ function deadheadPane(s, locoIndex, ctx) {
       </form>
       <div class="asg-help">A planned deadhead counts the unit at its destination (on the road until it arrives) and shows the move on the map. It replaces any deadhead in the STP export for that unit.</div>
       ${out.length ? `<div class="ugh">Leaving ${esc(s.station)} <span>${out.length}</span></div><div class="units roster pgrid">${out.map((e) => row(e, 'out')).join('')}</div>` : ''}
-      ${inn.length ? `<div class="ugh">Coming to ${esc(s.station)} <span>${inn.length}</span></div><div class="units roster pgrid">${inn.map((e) => row(e, 'in')).join('')}</div>` : ''}`,
+      ${inn.length ? `<div class="ugh">Coming to ${esc(s.station)} <span>${inn.length}</span></div><div class="units roster pgrid">${inn.map((e) => row(e, 'in')).join('')}</div>` : ''}
+      ${swapSection(s, ctx)}`,
   };
+}
+
+/** Swap plans touching this terminal (as spoke or hub terminal) + a button to plan one. */
+function swapSection(s, ctx) {
+  const ws = ((ctx && ctx.swaps) || []).filter((w) => w.spoke === s.k || w.base === s.k);
+  const nameOf = (ctx && ctx.nameOf) || ((k) => String(k).split('|')[0]);
+  const isTerm = ctx && ctx.isHubTerminal && ctx.isHubTerminal(s.k);
+  const rows = ws.map((w) => `<div class="u asg-row"><span><span class="asg-tag swp">${esc(w.id)}</span> ${w.spoke === s.k ? `⇄ ${esc(nameOf(w.base))}` : `⇄ ${esc(nameOf(w.spoke))}`}
+      <span class="dim">${w.toHub.length} to shop · ${w.toSpoke.length} to spoke${w.eta ? ' · ETA ' + esc(w.eta) : ''}</span></span>
+      <span><button type="button" class="asg-btn" data-swap-act="edit" data-id="${esc(w.id)}">Edit</button></span></div>`).join('');
+  return `<div class="ugh">Swap plans <span>${ws.length}</span></div>
+    ${rows ? `<div class="units roster pgrid">${rows}</div>` : ''}
+    <button type="button" class="asg-btn" data-swap-act="new" style="margin-top:6px">⇄ ${isTerm ? 'Plan a swap with a spoke…' : 'Plan a swap with the hub shop…'}</button>`;
 }
 
 /**
@@ -241,7 +255,7 @@ function inspPane(s) {
 
 function inboundPane(inb) {
   if (!inb.length) return null;
-  const body = inb.map((u) => `<div class="u"><span><b>${esc(u.loco)}</b> ${esc(u.model)} ${ltTag(u.t)}${u.manual ? '<span class="asg-tag man" title="Planned in this console">manual</span>' : ''}</span><span style="color:${CO.inbound}">from ${esc(u.rawloc)} · ETA ${esc(u.eta) || '—'}${u.manual && u.notes ? ' · ' + esc(u.notes) : ''}</span></div>`).join('');
+  const body = inb.map((u) => `<div class="u"><span><b>${esc(u.loco)}</b> ${esc(u.model)} ${ltTag(u.t)}${u.swap ? `<span class="asg-tag swp" title="Part of swap plan ${esc(u.swap)}">swap ${esc(u.swap)}</span>` : u.manual ? '<span class="asg-tag man" title="Planned in this console">manual</span>' : ''}</span><span style="color:${CO.inbound}">from ${esc(u.rawloc)} · ETA ${esc(u.eta) || '—'}${u.manual && u.notes ? ' · ' + esc(u.notes) : ''}</span></div>`).join('');
   return { key: 'inbound', label: 'Inbound', count: inb.length, cap: `Inbound deadhead · ${inb.length}`, body: `<div class="units pgrid">${body}</div>` };
 }
 
@@ -440,6 +454,12 @@ function wireDeadheads(el, s, locoIndex, ctx) {
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-dh-cancel]');
     if (b) fire(el, 'dispatch:deadhead', { action: 'cancel', loco: b.dataset.dhCancel, station: s.k });
+    const sw = e.target.closest('[data-swap-act]');
+    if (sw) {
+      e.stopPropagation();
+      const term = ctx && ctx.isHubTerminal && ctx.isHubTerminal(s.k);
+      fire(el, 'dispatch:swap', sw.dataset.swapAct === 'edit' ? { action: 'edit', id: sw.dataset.id } : term ? { action: 'new', base: s.k } : { action: 'new', spoke: s.k });
+    }
   });
   if (!form) return;
   const msg = form.querySelector('.dh-msg');

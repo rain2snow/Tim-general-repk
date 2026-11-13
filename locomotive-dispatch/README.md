@@ -132,6 +132,7 @@ this browser, so it survives a reload. The dialog shows where the current snapsh
 | Captive-plan edits | including train re-homing |
 | Manual locomotive assignments | |
 | Planned deadheads and consists | merge keeps each unit in one consist (theirs win) |
+| Swap plans | merge keeps each unit in one plan (theirs win) |
 | Action plans and resolved flags | console queue, Actions Required, hub transfers |
 | Settings | theme and demand day |
 | Snapshot | optional, on by default; stored losslessly |
@@ -140,7 +141,7 @@ this browser, so it survives a reload. The dialog shows where the current snapsh
 contains. It warns if the snapshot is older than yours. Then pick one:
 
 * **Replace** — take that session exactly. Use this for a handoff.
-* **Merge** — keep your assignments, deadheads, consists and action plans, add theirs (theirs win on conflicts), and
+* **Merge** — keep your assignments, deadheads, consists, swap plans and action plans, add theirs (theirs win on conflicts), and
   use their plan and snapshot if they have them.
 
 After applying, the whole console re-analyses, and everything persists across reloads, except the
@@ -212,6 +213,60 @@ In the engine: `analyze(…, { deadheads: { locoId: { to, eta, note } }, consist
 job, units, note }] })`. Fleet records carry `dhTo` / `consist`, manual deadhead records carry
 `manual`, and stations with consists get a `consists` summary. Without any, the output is
 byte-identical to before. Covered by `tests/unit/ops.test.js` and `tests/e2e/ops.mjs`.
+
+## Swap plans (hub ↔ spoke)
+
+A swap exchanges units between a spoke terminal and its hub's shop terminal. Units due for
+inspection go from the spoke to the shop, and fit units come back, so the spoke keeps its power
+while the shop gets the work.
+
+Each hub's **shop terminal** is the yard its shop works from. That is the nearest station with a
+captive requirement within 60 km of the shop, for example MacMillan → TORMACYAR and Walker →
+EDMONTON. Chicago has two: Kirk Yard and Markham.
+
+**Where to start one**
+
+* **⇄ Plan swap** on an inspection action in the Tactical queue. It isn't offered at the shop
+  terminal itself.
+* **+ New swap** in a hub group's **Swap plans** list.
+* **⇄ Plan a swap…** in a terminal popup's Deadhead tab. From a spoke this plans with its hub
+  shop; from a shop terminal it plans with one of its spokes.
+* **+ New swap plan** in the Fleet tab.
+
+**The editor**
+
+* Pick the hub, the spoke and the hub terminal.
+* **Auto-fill** sends every unit due for inspection at the spoke. It brings back the same number
+  of fit replacements from the hub terminal: Available, under 4000 hp, and with no inspection
+  due within 7 days. Units of the same family are picked first.
+* Units already in another plan, a manual deadhead or a consist are skipped. They are shown as
+  "in use" in the candidate lists.
+* Adjust either side from the candidate lists or by typing an ID. Each unit shows its inspection
+  status.
+* A live summary shows the net effect on the spoke ("even swap", or ±N), approximate HP each
+  way, and warnings:
+  * the spoke loses power;
+  * a unit isn't where the plan expects it;
+  * a replacement isn't fit, or its family differs;
+  * a unit is missing from the snapshot.
+
+**When saved**
+
+* Every unit becomes a planned deadhead to the other end, tagged with the plan ID (W1, W2, …).
+  It counts at its destination, appears in that terminal's Inbound tab as "swap W1", and is drawn
+  on the map.
+* A manual deadhead for the same unit still wins.
+* Saving takes the units out of any other swap plan and any manual deadhead.
+* The queue shows **⇄ In swap W1** on the inspection action, and the hub group lists its plans
+  with their net effect.
+* The Fleet tab's **Swap plans** panel has Edit, Cancel, Export CSV and Cancel all.
+* Plans are saved in this browser, counted on the header chip, and included in the session
+  handoff file.
+
+The logic is DOM-free in `src/core/swaps.js` (`hubTerminals`, `suggestSwap`, `swapCandidates`,
+`swapSummary`, `swapDeadheads`). It's covered by `tests/unit/swaps.test.js` and by
+`tests/e2e/swaps.mjs`, which plans a swap from the queue, edits it, checks the counts, tags,
+popup, Fleet tab, reload and handoff, then cancels it.
 
 ## Captive Plan tab (editable)
 

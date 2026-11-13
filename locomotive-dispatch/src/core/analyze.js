@@ -13,7 +13,8 @@
  *      lcs        Set/obj of LCS-equipped loco ids (data/lcs-fleet.json)
  *      assign     manual assignments { locoId: stationKey | "" } — overrides the train-based home;
  *                 "" releases the unit: no home, and not counted toward any terminal
- *      deadheads  dispatcher-planned moves { locoId: { to, eta, note } } — unit counts at `to`
+ *      deadheads  dispatcher-planned moves { locoId: { to, eta, note, swap? } } — unit counts at `to`
+ *                 (swap plans are expanded into these by core/swaps.js swapDeadheads; `swap` tags them)
  *      consists   [{ id, name, k, job, units: [locoId…] (lead first), note }] — units count at `k`
  *                 precedence for a unit's home: deadhead > assign > consist > train-based
  */
@@ -157,6 +158,7 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
       stp: compactStp(r),
       ...(!dh && asg !== undefined ? { manual: asg || '' } : {}),
       ...(dh ? { dhTo: dh.to } : {}),
+      ...(dh && dh.swap ? { swap: dh.swap } : {}),
       ...(consistOf[loco] ? { consist: consistOf[loco].id } : {}),
     });
     if (isroad && !hhp) push(roadunits, h, rec);
@@ -173,7 +175,7 @@ export function analyze(stpRows, plan, base2homeIn, options = {}) {
         deadhead.push({
           loco, lockey: pkey, rawloc: curLoc.trim(), op, model, t, destkey: dh.to, dest: dh.to.replace('|', ' '),
           eta: String(dh.eta || '').trim(), etr: (r['ETR'] || '').trim(), train: String(dh.train || ''),
-          notes: String(dh.note || ''), manual: true, lat: null, lng: null, tlat: null, tlng: null,
+          notes: String(dh.note || ''), manual: true, ...(dh.swap ? { swap: dh.swap } : {}), lat: null, lng: null, tlat: null, tlng: null,
         });
       }
     } else if (op === 'DH' && !hhp) { // deadhead: healthy unit moving to a destination

@@ -12,6 +12,17 @@ import { $, $$, byId, setText, isMobile, flashSaved } from '../dom.js';
 import { app, emit } from '../state.js';
 import { map, markerByKey, deadByLoco, flyToMarker, layerForStatus } from '../map/mapView.js';
 import { ensureLayerShown } from './layerToggles.js';
+import { hubTerminals, swapSummary, indexSwaps } from '../../core/swaps.js';
+import { openSwapEditor } from '../swapEditor.js';
+
+/** Swap plans by hub / loco + each hub's shop terminals, for this repaint. */
+let swapIdx = { byLoco: {} }, terminalsByHub = {};
+function indexForRepaint() {
+  swapIdx = indexSwaps(app.swaps || []);
+  terminalsByHub = {};
+  (app.hubModel ? app.hubModel.hubs : []).forEach((b) => { terminalsByHub[b.id] = hubTerminals(b, app.data.stations); });
+}
+const swapsOfHub = (id) => (app.swaps || []).filter((w) => w.hub === id);
 
 let mode = 'tactical';
 let filter = 'all';
@@ -47,6 +58,16 @@ export function setQueueFilter(f) {
 }
 
 export function initQueue() {
+  // swap plans: buttons inside items / hub lists open the editor (and do not fly the map)
+  const q = byId('queue');
+  if (q) q.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-swap-edit],[data-swap-new],[data-swap-hub]');
+    if (!b) return;
+    e.stopPropagation();
+    if (b.dataset.swapEdit) openSwapEditor({ id: b.dataset.swapEdit });
+    else if (b.dataset.swapNew) openSwapEditor({ spoke: b.dataset.swapNew });
+    else openSwapEditor({ hub: b.dataset.swapHub });
+  }, { capture: true });
   $$('#seg button').forEach((b) => b.addEventListener('click', () => setQueueFilter(b.dataset.f)));
   $$('#qmode button').forEach((b) => b.addEventListener('click', () => setQueueMode(b.dataset.mode)));
 }
@@ -59,6 +80,7 @@ export function renderQueue() {
   const focusId = active && active.classList.contains('qta') && q.contains(active) ? active.closest('[data-aid]').dataset.aid : null;
   const caret = focusId ? [active.selectionStart, active.selectionEnd] : null;
   const scroll = q.scrollTop;
+  indexForRepaint();
   q.innerHTML = mode === 'tactical' ? tacticalHtml() : strategicHtml();
   wire(q);
   if (focusId) {
@@ -83,6 +105,27 @@ const statusPill = (b) => {
 };
 const shopCodes = (b) => b.shops.join(' / ');
 
+/* ------------------------------------------------------------------ swap plans */
+function swapButton(a) {
+  if (!a.actid.startsWith('insp:')) return '';
+  const w = swapIdx.byLoco[a.loco];
+  if (w) return `<button type="button" class="qswap has" data-swap-edit="${esc(w.id)}" title="Edit swap plan ${esc(w.id)}">⇄ In swap ${esc(w.id)}</button>`;
+  if ((terminalsByHub[a.hub] || []).includes(a.ref.id)) return '';     // already at the hub shop
+  return `<button type="button" class="qswap" data-swap-new="${esc(a.ref.id)}" title="Plan a swap with the hub shop for the units due here">⇄ Plan swap</button>`;
+}
+
+function swapListHtml(hubId) {
+  const ws = swapsOfHub(hubId);
+  const nm = (k) => (app.stationsByKey[k] ? app.stationsByKey[k].station : String(k).split('|')[0]);
+  const rows = ws.map((w) => {
+    const sum = swapSummary(w, app.data);
+    return `<div class="swl-row" data-swap-edit="${esc(w.id)}" title="${esc(sum.warnings.join(' · ') || 'Edit')}"><span class="swl-id">${esc(w.id)}</span>
+      <span class="swl-t">${esc(nm(w.spoke))} ⇄ ${esc(nm(w.base))} · ${w.toHub.length} out / ${w.toSpoke.length} back</span>
+      ${sum.warnings.length ? '<span class="warn">⚠</span>' : ''}<span class="hpill ${sum.net < 0 ? 'short' : 'balanced'}">${sum.net === 0 ? 'EVEN' : sum.net > 0 ? '+' + sum.net : sum.net}</span></div>`;
+  }).join('');
+  return `<div class="swplist" data-swhub="${esc(hubId)}"><div class="swl-h">Swap plans · ${ws.length}<button type="button" class="qswap" data-swap-hub="${esc(hubId)}">+ New swap</button></div>${rows}</div>`;
+}
+
 /* ------------------------------------------------------------------ tactical */
 let tacticalIndex = [];           // flat list of rendered actions, by data-i
 
@@ -97,6 +140,7 @@ function itemHtml(a, i) {
       <div class="r1"><span class="loco">${esc(a.loco)}</span><span class="model">${esc(a.model)}</span></div>
       <div class="act">${a.text}</div>
       ${a.hint ? `<div class="hint">${esc(a.hint)}</div>` : ''}
+      ${swapButton(a)}
       <div class="meta">${metas}</div>
       ${solBlock(a.actid)}
     </div>
@@ -144,8 +188,9 @@ function hubGroupHtml({ b, acts }) {
   const overdue = acts.filter((a) => a.overdue).length;
   const short = acts.filter((a) => a.actid.startsWith('short:')).length;
   const dead = acts.filter((a) => a.type === 'route').length;
+  const nsw = swapsOfHub(b.id).length;
   const chips = [short && `<span class="hc short">${short} short</span>`, overdue && `<span class="hc od">${overdue} overdue</span>`,
-    dead && `<span class="hc dead">${dead} dead</span>`].filter(Boolean).join('');
+    dead && `<span class="hc dead">${dead} dead</span>`, nsw && `<span class="hc">${nsw} swap${nsw > 1 ? 's' : ''}</span>`].filter(Boolean).join('');
   const items = acts.map((a) => { tacticalIndex.push(a); return itemHtml(a, tacticalIndex.length - 1); }).join('');
   const folded = filter === 'all' && !openHubs.has(b.id);   // a type filter shows its hubs open
   return `<div class="hubgrp${folded ? ' collapsed' : ''}" data-hub="${b.id}">
@@ -155,7 +200,7 @@ function hubGroupHtml({ b, acts }) {
       ${bal ? `<button class="hfly" title="Show this hub on the map">⌖</button>` : ''}
     </div>
     ${chips ? `<div class="hchips">${chips}</div>` : ''}
-    <div class="hubbody">${items}</div></div>`;
+    <div class="hubbody">${bal ? swapListHtml(b.id) : ''}${items}</div></div>`;
 }
 
 /* ------------------------------------------------------------------ strategic */

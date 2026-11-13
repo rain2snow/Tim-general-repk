@@ -7,6 +7,10 @@ import { stationPlanState } from '../../core/store.js';
 import { app } from '../state.js';
 import { installBasemap } from './basemap.js';
 import { stationPopupElement, stationPopupOptions, deadPopup, deadheadPopup, shopPopup } from './popups.js';
+import { hubTerminals } from '../../core/swaps.js';
+
+/** Is this station a hub's shop terminal? (for the popup's swap button) */
+const isHubTerminal = (k) => !!app.hubModel && app.hubModel.hubs.some((b) => hubTerminals(b, app.data.stations).includes(k));
 
 export let map = null;
 /** Toggleable layer groups (names match data-layer attributes in the markup). */
@@ -69,7 +73,7 @@ function renderStations(stations) {
     const m = L.marker([s.lat, s.lng], { icon: divIcon(`<div class="${dia ? 'mk-dia' : 'mk-dot'}" style="${style}"></div>`, r * 2) })
       // popup content is a function so the plan-state band is always current
       .bindPopup(() => stationPopupElement(s, stationPlanState(app.store, s, app.retask), app.locoIndex,
-        { map: app.assignments || {}, deadheads: app.deadheads || {},
+        { map: app.assignments || {}, deadheads: app.deadheads || {}, swaps: app.swaps || [], isHubTerminal,
           nameOf: (k) => (app.stationsByKey[k] ? app.stationsByKey[k].station : String(k).split('|')[0]),
           isStation: (k) => !!app.stationsByKey[k] }), stationPopupOptions());
     m.addTo(layers[layerForStatus(s.status)]);

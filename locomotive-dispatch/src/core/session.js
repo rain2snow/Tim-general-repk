@@ -10,6 +10,7 @@
  *     assignments:{ locoId: { k, note, at, from? } },          manual locomotive assignments
  *     deadheads:  { locoId: { to, eta, note, at } },          planned deadhead moves
  *     consists:   [{ id, name, k, job, units: [loco…], note }], consists (lead unit first)
+ *     swaps:      [{ id, hub, spoke, base, toHub, toSpoke, eta, note }], hub ↔ spoke swap plans
  *     actionPlans:{ 'short:EDMONTON|AB': 'text', 'short:EDMONTON|AB:done': '1', ... },
  *     snapshot:   { meta, fleet } | null                         the analysed snapshot (lossless:
  *                                                              fleet records carry raw STP fields)
@@ -22,7 +23,7 @@ export const SESSION_APP = 'cn-locomotive-dispatch';
 export const SESSION_KIND = 'session';
 export const SESSION_VERSION = 1;
 
-export function buildBundle({ settings = {}, plan = null, assignments = {}, deadheads = {}, consists = [], actionPlans = {}, snapshot = null, by = '', note = '', now = new Date() }) {
+export function buildBundle({ settings = {}, plan = null, assignments = {}, deadheads = {}, consists = [], swaps = [], actionPlans = {}, snapshot = null, by = '', note = '', now = new Date() }) {
   return {
     app: SESSION_APP, kind: SESSION_KIND, version: SESSION_VERSION,
     exportedAt: now.toISOString(), by: String(by || '').trim(), note: String(note || '').trim(),
@@ -31,6 +32,7 @@ export function buildBundle({ settings = {}, plan = null, assignments = {}, dead
     assignments: { ...assignments },
     deadheads: { ...deadheads },
     consists: consists.map((c) => ({ ...c, units: [...c.units] })),
+    swaps: swaps.map((w) => ({ ...w, toHub: [...w.toHub], toSpoke: [...w.toSpoke] })),
     actionPlans: Object.fromEntries(Object.entries(actionPlans).filter(([k, v]) => ACTION_KEY_RE.test(k) && v)),
     snapshot: snapshot ? { meta: snapshot.meta, fleet: snapshot.fleet } : null,
   };
@@ -50,6 +52,7 @@ export function parseBundle(text) {
   if (b.assignments != null && (typeof b.assignments !== 'object' || Array.isArray(b.assignments))) throw new Error('Session file: "assignments" is malformed.');
   if (b.snapshot != null && !(b.snapshot.meta && Array.isArray(b.snapshot.fleet))) throw new Error('Session file: "snapshot" is malformed.');
   if (b.consists != null && !(Array.isArray(b.consists) && b.consists.every((c) => c && c.id && c.k && Array.isArray(c.units)))) throw new Error('Session file: "consists" is malformed.');
+  if (b.swaps != null && !(Array.isArray(b.swaps) && b.swaps.every((w) => w && w.id && w.spoke && w.base && Array.isArray(w.toHub) && Array.isArray(w.toSpoke)))) throw new Error('Session file: "swaps" is malformed.');
   return {
     ...b,
     settings: b.settings || {},
@@ -57,6 +60,7 @@ export function parseBundle(text) {
     assignments: b.assignments || {},
     deadheads: b.deadheads && typeof b.deadheads === 'object' && !Array.isArray(b.deadheads) ? b.deadheads : {},
     consists: b.consists || [],
+    swaps: b.swaps || [],
     actionPlans: Object.fromEntries(Object.entries(b.actionPlans || {}).filter(([k, v]) => ACTION_KEY_RE.test(k) && typeof v === 'string' && v)),
     snapshot: b.snapshot || null,
   };
@@ -75,6 +79,7 @@ export function summarizeBundle(b, builtinPlan) {
     assignments: Object.keys(b.assignments || {}).length,
     deadheads: Object.keys(b.deadheads || {}).length,
     consists: (b.consists || []).length,
+    swaps: (b.swaps || []).length,
     actionPlans: planned, resolved,
     snapshotDate: b.snapshot ? b.snapshot.meta.snapshot : null, snapshotUnits: b.snapshot ? b.snapshot.fleet.length : 0, lossless,
     theme: (b.settings && b.settings.theme) || 'light', demandDay: b.settings ? b.settings.demandDay ?? null : null,
@@ -91,7 +96,7 @@ export function summarizeBundle(b, builtinPlan) {
 export function combineSessions(mine, incoming, mode = 'replace') {
   if (mode === 'replace') {
     return { ...incoming, plan: incoming.plan, assignments: { ...incoming.assignments }, deadheads: { ...(incoming.deadheads || {}) },
-      consists: (incoming.consists || []).map((c) => ({ ...c })), actionPlans: { ...incoming.actionPlans } };
+      consists: (incoming.consists || []).map((c) => ({ ...c })), swaps: (incoming.swaps || []).map((w) => ({ ...w })), actionPlans: { ...incoming.actionPlans } };
   }
   return {
     ...incoming,
@@ -100,9 +105,19 @@ export function combineSessions(mine, incoming, mode = 'replace') {
     assignments: { ...mine.assignments, ...incoming.assignments },
     deadheads: { ...(mine.deadheads || {}), ...(incoming.deadheads || {}) },
     consists: mergeConsists(mine.consists || [], incoming.consists || []),
+    swaps: mergeSwaps(mine.swaps || [], incoming.swaps || []),
     actionPlans: { ...mine.actionPlans, ...incoming.actionPlans },
     snapshot: incoming.snapshot || null,
   };
+}
+
+/** Union of swap plans: incoming wins on the same id, and a unit stays in one plan (incoming's). */
+function mergeSwaps(mine, incoming) {
+  const ids = new Set(incoming.map((w) => w.id)), taken = new Set(incoming.flatMap((w) => [...w.toHub, ...w.toSpoke]));
+  const kept = mine.filter((w) => !ids.has(w.id))
+    .map((w) => ({ ...w, toHub: w.toHub.filter((l) => !taken.has(l)), toSpoke: w.toSpoke.filter((l) => !taken.has(l)) }))
+    .filter((w) => w.toHub.length || w.toSpoke.length);
+  return [...kept, ...incoming.map((w) => ({ ...w }))];
 }
 
 /** Union of consists: incoming wins on the same id, and a unit stays in one consist (incoming's). */

@@ -6,6 +6,9 @@ import { csvCellMinimal } from '../../core/csv.js';
 import { app } from '../state.js';
 import { setAssignment, clearAssignments, cancelDeadhead, dissolveConsist, commitOpsNow as clearOpsKind } from '../app.js';
 import { showView } from './navigation.js';
+import { swapSummary } from '../../core/swaps.js';
+import { deleteSwap } from '../app.js';
+import { openSwapEditor } from '../swapEditor.js';
 
 let drill = {}, shopName = {};
 
@@ -32,9 +35,29 @@ export function buildFleetView() {
     FLEET_OVERLAYS.map((m) => row(m, b.counts[m.k])).join('') +
     '</div><div class="fl-detail" id="fl-detail"></div>';
   $$('.fl-row', box).forEach((r) => r.addEventListener('click', () => toggleDrill(r.dataset.fcat, r)));
-  box.insertAdjacentHTML('afterbegin', assignmentsHtml() + deadheadsHtml() + consistsHtml());
+  box.insertAdjacentHTML('afterbegin', assignmentsHtml() + swapsHtml() + deadheadsHtml() + consistsHtml());
   wireAssignments(box);
   wireOps(box);
+}
+
+/* ------------------------------------------------------------------ swap plans */
+function swapRows() {
+  return (app.swaps || []).map((w) => {
+    const sum = swapSummary(w, app.data), hub = app.hubModel && app.hubModel.byId[w.hub];
+    return { id: w.id, hub: hub ? hub.name : w.hub, spoke: stationName(w.spoke), base: stationName(w.base),
+      toHub: w.toHub.join(' + '), toSpoke: w.toSpoke.join(' + '), net: sum.net > 0 ? '+' + sum.net : String(sum.net),
+      eta: w.eta || '', warnings: sum.warnings.join('; '), note: w.note || '' };
+  });
+}
+function swapsHtml() {
+  const rows = swapRows();
+  return '<div class="asg-panel' + (rows.length ? '' : ' empty-panel') + '" data-ops="sw"><div class="fl-head"><h3>Swap plans</h3><span class="fl-sub">hub ↔ spoke exchanges · units due for inspection go to the shop, fit units come back</span>' +
+    '<span class="asg-actions"><button class="actexport" data-ops-act="new">+ New swap plan</button>' + (rows.length ? '<button class="actexport" data-ops-act="export">Export CSV</button><button class="actexport" data-ops-act="clear">Cancel all</button>' : '') + '</span></div>' +
+    (rows.length ? '<table class="asg-tbl"><thead><tr><th>Plan</th><th>Hub</th><th>Spoke</th><th>Spoke → shop</th><th>Shop → spoke</th><th>Net</th><th>ETA</th><th>Warnings</th><th></th></tr></thead><tbody>' +
+    rows.map((r) => `<tr><td><b>${esc(r.id)}</b></td><td>${esc(r.hub)}<div class="dim">${esc(r.base)}</div></td><td>${esc(r.spoke)}</td><td>${esc(r.toHub || '—')}</td><td>${esc(r.toSpoke || '—')}</td>` +
+      `<td class="${+r.net < 0 ? 'neg' : +r.net > 0 ? 'pos' : ''}">${esc(r.net)}</td><td>${esc(r.eta)}</td><td class="${r.warnings ? 'neg' : 'dim'}">${esc(r.warnings || '—')}</td>` +
+      `<td><button class="asg-btn" data-sw-edit="${esc(r.id)}">Edit</button> <button class="asg-btn ghost" data-sw-undo="${esc(r.id)}">Cancel</button></td></tr>`).join('') +
+    '</tbody></table>' : '') + '</div>';
 }
 
 /* ------------------------------------------------------------------ deadheads + consists */
@@ -81,6 +104,17 @@ function consistsHtml() {
 function wireOps(box) {
   box.querySelectorAll('[data-ops]').forEach((panel) => panel.addEventListener('click', (e) => {
     const dh = e.target.closest('[data-dh-undo]'), cs = e.target.closest('[data-cs-undo]'), act = e.target.closest('[data-ops-act]');
+    const swEdit = e.target.closest('[data-sw-edit]'), swUndo = e.target.closest('[data-sw-undo]');
+    if (swEdit) { openSwapEditor({ id: swEdit.dataset.swEdit }); return; }
+    if (swUndo) { deleteSwap(swUndo.dataset.swUndo); showView('fleet'); return; }
+    if (panel.dataset.ops === 'sw' && act) {
+      const snap = (app.data.meta && app.data.meta.snapshot) || 'export';
+      if (act.dataset.opsAct === 'new') openSwapEditor({});
+      else if (act.dataset.opsAct === 'export') downloadText(csvOf(['Plan', 'Hub', 'Hub terminal', 'Spoke', 'Spoke to shop', 'Shop to spoke', 'Net at spoke', 'ETA', 'Warnings', 'Note'], swapRows(),
+        ['id', 'hub', 'base', 'spoke', 'toHub', 'toSpoke', 'net', 'eta', 'warnings', 'note']), `swap_plans_${snap}.csv`);
+      else if (act.dataset.opsAct === 'clear' && confirm('Cancel all swap plans?')) { app.swaps.splice(0); clearOpsKind(); showView('fleet'); }
+      return;
+    }
     if (dh) { cancelDeadhead(dh.dataset.dhUndo); showView('fleet'); return; }
     if (cs) { dissolveConsist(cs.dataset.csUndo); showView('fleet'); return; }
     if (!act) return;

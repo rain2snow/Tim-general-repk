@@ -25,7 +25,9 @@ import { loadSavedPlan, savePlan, clearSavedPlan } from './planStore.js';
 import { initPlanView, buildPlanView } from './views/planView.js';
 import { initThemeToggle } from './theme.js';
 import { loadAssignments, saveAssignments, assignOption } from './assignStore.js';
-import { loadDeadheads, saveDeadheads, loadConsists, saveConsists, nextConsistId } from './opsStore.js';
+import { loadDeadheads, saveDeadheads, loadConsists, saveConsists, nextConsistId, loadSwaps, saveSwaps } from './opsStore.js';
+import { swapDeadheads, nextSwapId } from '../core/swaps.js';
+import { openSwapEditor } from './swapEditor.js';
 import { loadSavedSnapshot, saveSnapshot, clearSavedSnapshot } from './snapshotStore.js';
 import { initSession } from './session.js';
 import { markerByKey } from './map/mapView.js';
@@ -78,7 +80,7 @@ export function analyzeWithPlan(plan = app.plan) {
   const r = app.reference;
   return analyze(app.rows, { ...plan, shops: r.plan.shops }, r.base2home,
     { multiHome: r.multiHome, lcs: r.lcs, now: app.snapshotNow || undefined,
-      assign: assignOption(app.assignments), deadheads: app.deadheads, consists: app.consists });
+      assign: assignOption(app.assignments), deadheads: allDeadheads(), consists: app.consists });
 }
 
 /* ---------- manual locomotive assignments (dispatcher overrides at a terminal) ---------- */
@@ -98,11 +100,13 @@ export function setAssignment(loco, k, note = '', reopen = null) {
   if (reopen) setTimeout(() => { const m = markerByKey[reopen]; if (m) m.openPopup(); }, 30);
 }
 
-/* ---------- manual deadheads + consists ---------- */
+/* ---------- manual deadheads + consists + swap plans ---------- */
+/** Deadheads the engine sees: swap-plan moves, then manual deadheads (a manual one wins). */
+const allDeadheads = () => ({ ...swapDeadheads(app.swaps), ...app.deadheads });
 const reopenPopup = (k) => { if (k) setTimeout(() => { const m = markerByKey[k]; if (m) m.openPopup(); }, 30); };
 export const commitOpsNow = () => commitOps(null);
 function commitOps(reopen) {
-  saveDeadheads(app.deadheads); saveConsists(app.consists);
+  saveDeadheads(app.deadheads); saveConsists(app.consists); saveSwaps(app.swaps);
   setData(analyzeWithPlan());
   emit('assign');
   reopenPopup(reopen);
@@ -141,12 +145,34 @@ export function deadheadConsist(id, to, opts = {}, reopen = null) {
   app.consists = app.consists.map((x) => (x.id === id ? { ...x, k: to, job: '' } : x));
   setDeadheads(c.units, to, opts, reopen);
 }
-export function clearOps() {
+/**
+ * Create or update a swap plan. Its units leave any other swap plan and any manual deadhead
+ * (the plan now decides where they go).
+ */
+export function saveSwap(w, reopen = null) {
+  const id = w.id || nextSwapId(app.swaps);
+  const units = new Set([...w.toHub, ...w.toSpoke]);
+  const others = app.swaps.filter((x) => x.id !== id)
+    .map((x) => ({ ...x, toHub: x.toHub.filter((l) => !units.has(l)), toSpoke: x.toSpoke.filter((l) => !units.has(l)) }))
+    .filter((x) => x.toHub.length || x.toSpoke.length);
+  const prev = app.swaps.find((x) => x.id === id);
+  app.swaps = [...others, { id, hub: w.hub, spoke: w.spoke, base: w.base, toHub: [...w.toHub], toSpoke: [...w.toSpoke],
+    eta: w.eta || '', note: w.note || '', at: prev ? prev.at : new Date().toISOString() }]
+    .sort((a, b) => +a.id.slice(1) - +b.id.slice(1));
+  app.deadheads = Object.fromEntries(Object.entries(app.deadheads).filter(([l]) => !units.has(l)));
+  commitOps(reopen);
+}
+export function deleteSwap(id, reopen = null) {
+  app.swaps = app.swaps.filter((x) => x.id !== id);
+  commitOps(reopen);
+}
+export function clearOps(kind = null) {
+  if (kind === 'swaps') { app.swaps = []; commitOps(null); return; }
   app.deadheads = {}; app.consists = [];
   commitOps(null);
 }
 /** Count of manual changes shown on the header chip. */
-export const manualCount = () => Object.keys(app.assignments).length + Object.keys(app.deadheads).length + app.consists.length;
+export const manualCount = () => Object.keys(app.assignments).length + Object.keys(app.deadheads).length + app.consists.length + app.swaps.length;
 
 export function clearAssignments() {
   app.assignments = {};
@@ -215,6 +241,7 @@ export function currentSession() {
     assignments: app.assignments,
     deadheads: app.deadheads,
     consists: app.consists,
+    swaps: app.swaps,
     actionPlans: app.store.entries(),
     snapshot: app.data,
   };
@@ -239,6 +266,7 @@ export function startApp({ snapshot, reference, network, hubs }) {
   app.assignments = loadAssignments();
   app.deadheads = loadDeadheads();
   app.consists = loadConsists();
+  app.swaps = loadSwaps();
   const saved = loadSavedPlan();
   initMap('map');
   initThemeToggle();
@@ -266,6 +294,11 @@ export function startApp({ snapshot, reference, network, hubs }) {
   document.addEventListener('dispatch:consist', (e) => {
     const { action, consist, id, station } = e.detail;
     if (action === 'dissolve') dissolveConsist(id, station); else saveConsist(consist, station);
+  });
+  document.addEventListener('dispatch:swap', (e) => {
+    const { action, id, spoke, base, units } = e.detail;
+    if (action === 'delete') deleteSwap(id, e.detail.station);
+    else openSwapEditor(id ? { id } : { spoke, base, units });
   });
   document.addEventListener('dispatch:assign', (e) => {
     const { loco, k, note, station } = e.detail;
